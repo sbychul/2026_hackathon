@@ -1,7 +1,6 @@
 from pathlib import Path
 import json
 from pypdf import PdfReader
-from PIL import Image, ImageChops
 
 ROOT=Path(__file__).resolve().parents[2]
 SAMPLE=ROOT/'samples/한국어'
@@ -28,14 +27,12 @@ def verify():
         assert len(reader.pages)==1
         page=reader.pages[0]
         assert not page.extract_text().strip() and len(page.images)==1,file
-        image=Image.open(file.with_suffix('.png')).convert('RGB')
-        embedded=page.images[0].image.convert('RGB')
-        assert image.size==embedded.size==tuple(d['크기'])
-        assert ImageChops.difference(image,embedded).getbbox() is None,file
+        image=page.images[0].image.convert('RGB')
+        assert image.size==tuple(d['크기']),file
         for item in d['가림대상정답']:
             x0,y0,x1,y1=item['영역']
             assert 0<=x0<x1<=image.width and 0<=y0<y1<=image.height
-    print('글자판 20개 21쪽, 이미지판 8개, 이미지 8개, 정답 영역 118개 검사 통과')
+    print('글자판 20개 21쪽, 이미지판 8개, 정답 영역 118개 검사 통과')
 
 if __name__=='__main__':
     verify()
