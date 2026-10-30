@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Button from '../components/Button'
 import AdminStatsContent from '../components/admin/AdminStatsContent'
 import CustomWordsPanel from '../components/admin/CustomWordsPanel'
+import RuleLocksPanel from '../components/admin/RuleLocksPanel'
 import { createAdminStatsStore } from '../components/admin/adminStatsStore'
 import './AdminPage.css'
 
@@ -10,7 +11,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
   const [store] = useState(createAdminStatsStore)
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const statusHeading = useRef<HTMLHeadingElement>(null)
-  const [tab, setTab] = useState<'stats' | 'words'>('stats')
+  const [tab, setTab] = useState<'stats' | 'words' | 'locks'>('stats')
 
   useEffect(() => {
     void store.reload()
@@ -19,16 +20,20 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     // 다른 탭의 로그아웃과 계정 변경 시 이전 계정의 통계를 즉시 지운다.
     void import('../lib/supabase').then(({ supabase }) => {
       if (!active) return
-      const { data } = supabase.auth.onAuthStateChange((event) => {
-        if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return
+      let userId: string | undefined
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        // 창 복귀 때 다시 오는 같은 계정의 로그인 알림은 무시하고, 계정이 바뀌거나 로그아웃할 때만 지운다.
+        const previous = userId
+        userId = session?.user.id
+        if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || (event !== 'SIGNED_OUT' && userId === previous)) return
         store.clear()
         // 인증 콜백 안에서 인증 API를 기다리지 않도록 다음 작업으로 넘긴다.
         queueMicrotask(() => { if (active) void store.reload() })
       })
       unsubscribe = () => data.subscription.unsubscribe()
     }).catch(() => { /* 설정 실패는 통계 조회의 오류 화면에서 안내한다. */ })
-    // 다른 탭에서 변경된 권한도 화면으로 돌아올 때 확인한다.
-    const refresh = () => { void store.reload() }
+    // 다른 탭에서 변경된 권한도 화면으로 돌아올 때 로딩 화면 없이 확인한다.
+    const refresh = () => { void store.reload(true) }
     window.addEventListener('focus', refresh)
     return () => {
       active = false
@@ -51,6 +56,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     <div className="admin-tabs" role="group" aria-label="관리 메뉴">
       <Button variant={tab === 'stats' ? 'primary' : 'secondary'} aria-pressed={tab === 'stats'} onClick={() => setTab('stats')}>탐지 통계</Button>
       <Button variant={tab === 'words' ? 'primary' : 'secondary'} aria-pressed={tab === 'words'} onClick={() => setTab('words')}>기업 가림 단어</Button>
+      <Button variant={tab === 'locks' ? 'primary' : 'secondary'} aria-pressed={tab === 'locks'} onClick={() => setTab('locks')}>자동 탐지 고정</Button>
       <Button variant="secondary" onClick={onBack}>마스킹으로 돌아가기</Button>
     </div>
   )
@@ -65,6 +71,19 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
       </header>
       {tabs}
       <CustomWordsPanel />
+    </main>
+  )
+
+  // 관리자 권한이 확인된 경우에만 자동 탐지 고정 설정 화면을 보여준다.
+  if (tab === 'locks' && state.status !== 'denied') return (
+    <main className="admin-page">
+      <header className="admin-heading">
+        <p className="admin-eyebrow">관리자 전용</p>
+        <h1>반드시 가릴 항목을 정해요</h1>
+        <p>고정한 자동 탐지 항목은 직원과 관리자의 텍스트·문서 결과에서 해제할 수 없어요.</p>
+      </header>
+      {tabs}
+      <RuleLocksPanel />
     </main>
   )
 

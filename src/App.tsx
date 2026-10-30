@@ -10,6 +10,7 @@ import AdminPage from './pages/AdminPage'
 import { useSession } from './auth/useSession'
 import { getMaskingMode, type MaskingMode } from './components/enterprise/maskingPolicy'
 import { applyCustomWords } from './api/customWords'
+import { applyRuleLocks } from './api/ruleLocks'
 import './App.css'
 
 type View = 'input' | 'loading' | 'result'
@@ -102,12 +103,12 @@ function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
     await showResult()
   }
 
-  // 최신 기업 공통 단어를 탐지 룰에 넣은 뒤 결과를 보여준다. 기업 모드에서 조회에 실패하면 결과를 보여주지 않는다.
+  // 최신 기업 공통 단어와 고정 설정을 넣은 뒤 결과를 보여준다. 기업 모드에서 조회에 실패하면 결과를 보여주지 않는다.
   const showResult = async () => {
     setWordsFailed(false)
     setView('loading')
     try {
-      await applyCustomWords(mode === 'company')
+      await Promise.all([applyCustomWords(mode === 'company'), applyRuleLocks(mode === 'company')])
     } catch {
       setWordsFailed(true)
       return
@@ -120,8 +121,8 @@ function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
         {view === 'input' && <MainPage mode={mode} onFind={find} onFindPdf={findPdf} />}
         {view === 'loading' && (wordsFailed
           ? <section className="words-error" role="alert">
-            <h2>기업 공통 단어를 불러오지 못했어요</h2>
-            <p>공통 단어를 가리지 않은 결과는 보여드리지 않아요. 연결을 확인하고 다시 시도해 주세요.</p>
+            <h2>기업 가림 설정을 불러오지 못했어요</h2>
+            <p>공통 단어와 고정 설정이 빠진 결과는 보여드리지 않아요. 연결을 확인하고 다시 시도해 주세요.</p>
             <div className="words-error-actions">
               <Button onClick={() => void showResult()}>다시 시도</Button>
               <Button variant="secondary" onClick={() => { setWordsFailed(false); setView('input') }}>처음으로</Button>

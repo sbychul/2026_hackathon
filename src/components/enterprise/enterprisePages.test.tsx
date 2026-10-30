@@ -1,6 +1,6 @@
-import { getMaskingMode } from './maskingPolicy'
+import { getMaskingMode, setUnlockedRules } from './maskingPolicy'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import MainPage from '../../pages/MainPage'
 import ResultPage from '../../pages/ResultPage'
 import PdfResultPage from '../../pages/PdfResultPage'
@@ -9,7 +9,17 @@ import PdfResultPage from '../../pages/PdfResultPage'
 const noop = () => {}
 const text = '전화 010-0000-0001, 메일 demo@example.org'
 
+afterEach(() => setUnlockedRules([]))
+
 describe('기업 화면의 조작과 안내', () => {
+  it('고정이 풀린 룰만 기업 화면에 체크박스가 생긴다', () => {
+    setUnlockedRules(['email'])
+    const html = renderToStaticMarkup(<ResultPage text={text} mode="company" onRestart={noop} />)
+    expect(html).toContain('이메일 모두 선택')
+    expect(html).not.toContain('전화번호 모두 선택')
+    expect(html).toContain('2 / 2 선택')
+  })
+
   it.each(['employee', 'admin'] as const)('%s의 텍스트 화면에는 해제 조작 없이 고정 안내와 가린 결과가 있다', (role) => {
     const html = renderToStaticMarkup(<ResultPage text={text} mode={getMaskingMode(role)} onRestart={noop} />)
     expect(html).not.toContain('type="checkbox"')
