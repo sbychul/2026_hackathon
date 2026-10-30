@@ -36,6 +36,19 @@ export function passesLuhn(value: string): boolean {
   return sum % 10 === 0
 }
 
+// 이메일 후보의 점 위치와 도메인 이름을 검사해 잘못된 형식을 거른다.
+function isValidEmail(value: string): boolean {
+  const parts = value.split('@')
+  if (parts.length !== 2 || value.length > 254) return false
+  const local = parts[0]!
+  const domain = parts[1]!
+  if (local.length > 64 || !/^[A-Za-z0-9_%+-]+(?:\.[A-Za-z0-9_%+-]+)*$/.test(local)) return false
+  const labels = domain.split('.')
+  return labels.length >= 2
+    && labels.every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label))
+    && /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]!)
+}
+
 // 주소 정규식 조각: 시/도 + 시/군/구(0~2개, 세종은 없음) + 읍/면/동(선택) + 도로명 또는 지번 + 동/호/층(선택)
 const SIDO =
   '(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청[남북]|전라[남북]|경상[남북])' +
@@ -57,12 +70,15 @@ export const RULES: Rule[] = [
   {
     id: 'phone',
     name: '전화번호',
-    pattern: /(?<!\d)01[016789]-?\d{3,4}-?\d{4}(?!\d)/g,
+    // 010은 열한 자리, 그 외 휴대전화는 열 자리 또는 열한 자리이며 하이픈·점·공백 구분자를 통일한다.
+    pattern: /(?<!\d)(?:010([-. ]?)\d{4}\1\d{4}|01[16789]([-. ]?)\d{3,4}\2\d{4})(?!\d)/g,
   },
   {
     id: 'email',
     name: '이메일',
-    pattern: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,
+    // 끝의 하이픈·밑줄은 구두점으로 허용하고 도메인의 마지막 영문 부분까지만 후보에 담는다.
+    pattern: /(?<![A-Za-z0-9._%+@-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}(?![A-Za-z0-9@]|\.[A-Za-z0-9.-])/g,
+    validate: isValidEmail,
   },
   {
     id: 'card',

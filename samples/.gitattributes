@@ -1,0 +1,8 @@
+# 문서와 이미지는 바이트를 보존하고 본문·정답의 위치 계산은 줄바꿈을 고정한다.
+*.pdf binary
+*.png binary
+*.txt text eol=lf
+*.json text eol=lf
+*.cjs text eol=lf
+*.py text eol=lf
+*.md text eol=lf
