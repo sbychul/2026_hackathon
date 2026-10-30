@@ -23,12 +23,12 @@ export function createAdminStatsStore(dependencies: Dependencies = { currentUser
     listeners.forEach((listener) => listener())
   }
 
-  // 재조회마다 서버의 현재 역할을 확인하고 이전 통계를 먼저 비운다.
-  const reload = async () => {
+  // 재조회마다 서버의 현재 역할을 확인한다. 뒤에서 하는 재조회는 표시 중인 통계를 응답이 올 때까지 유지한다.
+  const reload = async (background = false) => {
     if (pending) return
     pending = true
     const request = ++revision
-    publish({ status: 'loading', stats: null })
+    if (!background || state.status !== 'ready') publish({ status: 'loading', stats: null })
     try {
       const user = await dependencies.currentUser()
       if (request !== revision) return

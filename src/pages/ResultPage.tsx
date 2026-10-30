@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
-import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
+import { isRuleLocked, selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
 import { detect } from '../masking/detect'
 import { mask, type MaskRange } from '../masking/mask'
@@ -67,7 +67,7 @@ interface ResultPageProps {
   mode?: MaskingMode
 }
 
-// 개인은 항목을 선택하고 기업은 모두 가린다. 직접 추가한 가림과 같은 결과를 복사한다.
+// 개인은 항목을 선택하고 기업은 고정된 항목을 모두 가린다. 직접 추가한 가림과 같은 결과를 복사한다.
 export default function ResultPage(props: ResultPageProps) {
   const identity = useMemo(() => ({ text: props.text, mode: props.mode, key: crypto.randomUUID() }), [props.text, props.mode])
   return <TextResultDocument key={identity.key} {...props} />
@@ -98,6 +98,8 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
   useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
   const selected = selectAutomaticMatches(matches, off, mode)
+  // 관리자가 고정한 종류만 있으면 기업 화면에서 선택 조작을 보여주지 않는다.
+  const allLocked = matches.every((m) => isRuleLocked(m.ruleId, mode))
   const maskedRanges = mergeRanges([...selected, ...manual])
   // 화면과 복사가 같은 결과를 쓰도록 mask() 결과 하나만 만든다. mask()는 글자 수를 바꾸지 않는다.
   const masked = mask(text, maskedRanges)
@@ -182,8 +184,8 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
   }
 
   // 묶음 번호를 누르면 그 종류를 전부 켜거나, 이미 전부 켜져 있으면 전부 끈다.
-  const toggleGroup = (indexes: number[]) => {
-    if (enterprise) return
+  const toggleGroup = (id: RuleId, indexes: number[]) => {
+    if (isRuleLocked(id, mode)) return
     const allOn = indexes.every((i) => !off.has(i))
     const next = new Set(off)
     indexes.forEach((i) => (allOn ? next.add(i) : next.delete(i)))
@@ -213,10 +215,10 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
       <div className="result-head">
         <div>
           <h1 className="result-title" ref={titleRef} tabIndex={-1}>
-            {matches.length ? enterprise ? `${matches.length}건을 모두 가렸어요` : `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
+            {matches.length ? enterprise && allLocked ? `${matches.length}건을 모두 가렸어요` : `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
           </h1>
           <p className="result-desc">
-            {enterprise ? '자동 탐지된 항목은 해제할 수 없어요. 놓친 부분은 원문에서 직접 추가로 가려 주세요.' : '체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그해 가리거나, 가릴 글자를 입력하세요.'}
+            {enterprise ? `${allLocked ? '자동 탐지된 항목은 해제할 수 없어요.' : '고정 표시가 없는 항목만 해제할 수 있어요.'} 놓친 부분은 원문에서 직접 추가로 가려 주세요.` : '체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그해 가리거나, 가릴 글자를 입력하세요.'}
           </p>
           <p className="visually-hidden" role="status">{notice}</p>
         </div>
@@ -238,13 +240,14 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
           <div className="found-head">
             <span className="found-title">찾은 항목</span>
             <span className="mono found-count">
-              {enterprise ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}
+              {enterprise && allLocked ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}
             </span>
           </div>
 
           {groups.map(({ id, items }) => {
             const indexes = items.map(({ i }) => i)
-            const onCount = enterprise ? items.length : indexes.filter((i) => !off.has(i)).length
+            const locked = isRuleLocked(id, mode)
+            const onCount = locked ? items.length : indexes.filter((i) => !off.has(i)).length
             const state = onCount === items.length ? 'all' : onCount === 0 ? 'none' : 'some'
             const open = !collapsed.has(id)
             return (
@@ -259,18 +262,18 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
                   >
                     <img src={open ? chevronDown : chevronRight} width={16} height={16} alt="" />
                   </button>
-                  {enterprise ? <span className="group-num all fixed" aria-hidden="true">{ruleNum(id)}</span> : <button
+                  {locked ? <span className="group-num all fixed" aria-hidden="true">{ruleNum(id)}</span> : <button
                     type="button"
                     role="checkbox"
                     aria-checked={state === 'all' ? true : state === 'none' ? false : 'mixed'}
                     aria-label={`${ruleName(id)} 모두 선택`}
                     className={`group-num ${state}`}
-                    onClick={() => toggleGroup(indexes)}
+                    onClick={() => toggleGroup(id, indexes)}
                   >
                     {ruleNum(id)}
                   </button>}
                   <span className="group-name">{ruleName(id)}</span>
-                  {enterprise && <span className="enterprise-fixed">고정</span>}
+                  {locked && <span className="enterprise-fixed">고정</span>}
                   <span className="mono group-count">
                     {state === 'all' ? items.length : `${onCount}/${items.length}`}
                   </span>
@@ -279,7 +282,7 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
                   <ul className="group-items">
                     {items.map(({ m, i }) => (
                       <li key={i}>
-                        {enterprise ? <div className="item item-locked">
+                        {locked ? <div className="item item-locked">
                           <span className={valueClass(m.ruleId)}>{text.slice(m.start, m.end)}</span>
                         </div> : <label className={`item ${off.has(i) ? 'off' : ''}`}>
                           <input
@@ -350,7 +353,7 @@ function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPagePr
             <div ref={sourceRef} className="doc-text">
               {segments.map((s, k) =>
                 s.range ? (
-                  <mark key={k} className={`hit ${enterprise || !off.has(s.i!) ? 'on' : ''}`}>
+                  <mark key={k} className={`hit ${isRuleLocked(s.range.ruleId, mode) || !off.has(s.i!) ? 'on' : ''}`}>
                     <span className={valueClass(s.range.ruleId)}>{s.text}</span>
                     <RuleNum id={s.range.ruleId} />
                   </mark>

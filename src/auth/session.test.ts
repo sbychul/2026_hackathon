@@ -133,6 +133,17 @@ describe('화면 인증 상태', () => {
     expect(session.getSnapshot().revision).toBe(revision)
   })
 
+  it('로그인한 사용자의 재확인은 로딩 상태 없이 진행한다', async () => {
+    const { api, session } = setup()
+    api.getCurrentUser.mockResolvedValue(employee)
+    await session.refresh()
+    const revision = session.getSnapshot().revision
+    const again = session.refresh()
+    expect(session.getSnapshot().pending).toBe(false)
+    await again
+    expect(session.getSnapshot()).toMatchObject({ user: employee, pending: false, revision })
+  })
+
   it('인증 오류 코드를 안전한 한글 안내로 바꾼다', () => {
     expect(loginError({ code: 'invalid_credentials' })).toContain('이메일이나 비밀번호')
     expect(loginError({ code: 'email_not_confirmed' })).toContain('이메일 인증')

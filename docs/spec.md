@@ -121,6 +121,15 @@ PDF나 텍스트에 들어 있는 개인정보를 브라우저 안에서 자동�
 6. 개인 모드는 단어 목록을 불러오지 않고 `custom` 룰을 비운다.
 - 서버에 저장하는 것은 관리자가 등록한 단어뿐이다. 문서 원문은 여전히 저장하지 않는다.
 
+### 6-8. 자동 탐지 고정 설정
+관리자가 기본 탐지 룰마다 기업 사용자의 가림을 강제할지 정한다.
+
+1. 관리자는 관리자 화면의 **자동 탐지 고정** 탭에서 룰별 체크박스로 고정 여부를 바꾼다. 바로 저장되며 실패하면 이전 상태를 유지한다.
+2. 처음에는 모든 룰이 고정이다. 공통 단어(`custom`)는 설정 대상이 아니며 항상 고정이다.
+3. 기업 모드는 결과를 보여주기 전에 공통 단어와 함께 최신 고정 설정을 불러온다. 불러오지 못하면 결과를 보여주지 않고 다시 시도 버튼을 보여준다.
+4. 고정된 룰의 항목은 해제할 수 없고 `고정`으로 표시한다. 고정이 풀린 룰의 항목은 개인 모드처럼 체크박스로 해제할 수 있다. 텍스트와 PDF에 모두 적용한다.
+5. 탐지 기록은 해제 여부와 관계없이 자동 탐지 건수를 그대로 저장한다.
+
 ## 7. 화면 (3개)
 
 1. 로그인 화면: 기업 로그인, "개인으로 사용하기" 진입 버튼
@@ -133,7 +142,7 @@ PDF나 텍스트에 들어 있는 개인정보를 브라우저 안에서 자동�
 ## 8. 데이터 구조 (Supabase)
 
 - `profiles`: id(로그인 사용자 id), 이름, 역할(직원/관리자)
-- `rules`: id, 룰 이름, 켜짐 여부 (처음엔 8개를 미리 넣어둔다. 이름은 코드의 룰 id와 같게: rrn, phone, email, card, name, address, account, custom)
+- `rules`: id, 룰 이름, 켜짐 여부, 고정 여부(`locked`, 기본 true) (처음엔 8개를 미리 넣어둔다. 이름은 코드의 룰 id와 같게: rrn, phone, email, card, name, address, account, custom)
 - `custom_words`: id, 단어(1~100자, 소문자 기준 중복 금지), 생성 시각
 - `detections`: id, 사용자 id, 룰 id, 걸린 건수, 입력 방식, 생성 시각
 
@@ -142,11 +151,12 @@ PDF나 텍스트에 들어 있는 개인정보를 브라우저 안에서 자동�
 - 관리자: 전체 기록을 읽을 수 있다.
 - 사용자가 자기 역할을 직접 바꾸지 못하게 `profiles`의 역할 수정을 막는다.
 - 탐지 기록은 추가만 가능하고, 수정과 삭제는 막는다.
+- `rules`: 로그인한 사용자는 읽을 수 있고, `locked` 수정은 관리자만 할 수 있다.
 - `custom_words`: 로그인한 사용자는 읽을 수 있고, 추가와 삭제는 관리자만 할 수 있다. 수정은 막는다. 로그인하지 않은 사용자는 접근할 수 없다.
 
 ### 화면과 데이터 함수 사이의 약속
 
-- 화면은 `src/api/auth.ts`, `src/api/detections.ts`, `src/api/stats.ts`, `src/api/customWords.ts`를 호출한다. 실제 연결은 공통 `src/lib/supabase.ts`를 사용한다.
+- 화면은 `src/api/auth.ts`, `src/api/detections.ts`, `src/api/stats.ts`, `src/api/customWords.ts`, `src/api/ruleLocks.ts`를 호출한다. 실제 연결은 공통 `src/lib/supabase.ts`를 사용한다.
 - 모든 함수는 비동기다. 실패하면 오류를 던지므로 화면에서 잡아서 안내한다. 비밀번호나 오류의 요청 내용을 기록하지 않는다.
 - 역할은 `employee`(직원), `admin`(관리자), 입력 방식은 `text`(텍스트), `pdf`(PDF)다.
 - `RuleId`는 공통 룰의 식별자 `rrn`, `phone`, `email`, `card`, `name`, `address`, `account`, `custom`이다. 화면 표시명은 공통 룰의 한글 이름을 쓴다.
@@ -163,6 +173,9 @@ PDF나 텍스트에 들어 있는 개인정보를 브라우저 안에서 자동�
 | `addCustomWord` | `word: string, existing: CustomWord[]` | 추가된 `CustomWord`. 관리자만 가능. 공백·100자 초과·중복은 오류 |
 | `deleteCustomWord` | `id: string` | 없음. 관리자만 가능. 지워진 행이 없으면 오류 |
 | `applyCustomWords` | `company: boolean` | 없음. 기업 모드면 최신 목록을 `custom` 룰에 넣고, 개인 모드면 비운다 |
+| `listRuleLocks` | 없음 | `{ id: RuleId, locked: boolean }[]`. `custom` 제외. 로그인한 사용자만 호출 가능 |
+| `setRuleLock` | `id: RuleId, locked: boolean` | 없음. 관리자만 가능. 바뀐 행이 없으면 오류 |
+| `applyRuleLocks` | `company: boolean` | 없음. 기업 모드면 고정 해제된 룰을 가림 정책에 넣고, 개인 모드면 비운다 |
 
 ```ts
 type CustomWord = {

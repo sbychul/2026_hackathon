@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import PdfPreview from '../components/PdfPreview'
 import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
-import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
+import { isRuleLocked, selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import { RULES, type RuleId } from '../rules/rules'
 import { readServicePdf, type ServicePdf } from '../lib/pdf/service'
@@ -75,6 +75,8 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
 
   const matches = useMemo(() => document?.file === file ? document.matches : [], [document, file])
   const selected = useMemo(() => selectAutomaticMatches(matches, off, mode), [matches, off, mode])
+  // 관리자가 고정한 종류만 있으면 기업 화면에서 선택 조작을 보여주지 않는다.
+  const allLocked = matches.every((match) => isRuleLocked(match.ruleId, mode))
   const automatic = useMemo(() => selected.flatMap((match) => match.regions), [selected])
   const regions = useMemo(() => [...automatic, ...manual], [automatic, manual])
   const ready = !!document && document.file === file && output?.bytes === document.bytes && output.regions === regions && !editing
@@ -103,8 +105,8 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   }
 
   // 한 종류의 항목을 모두 선택하거나 해제한다.
-  const toggleGroup = (indexes: number[]) => {
-    if (enterprise) return
+  const toggleGroup = (id: RuleId, indexes: number[]) => {
+    if (isRuleLocked(id, mode)) return
     const allOn = indexes.every((i) => !off.has(i))
     const next = new Set(off)
     indexes.forEach((i) => allOn ? next.add(i) : next.delete(i))
@@ -133,7 +135,7 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
       <div className="result-head">
         <div>
           <h1 className="result-title" ref={titleRef} tabIndex={-1}>{error ? 'PDF를 확인해 주세요' : !document ? 'PDF를 읽고 있어요' : matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}</h1>
-          <p className="result-desc">{enterprise ? '기업 자동 탐지는 해제할 수 없어요. ' : '선택한 자동 탐지와 직접 영역을 함께 가려요. '}페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
+          <p className="result-desc">{enterprise ? allLocked ? '기업 자동 탐지는 해제할 수 없어요. ' : '고정 표시가 없는 항목만 해제할 수 있어요. ' : '선택한 자동 탐지와 직접 영역을 함께 가려요. '}페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
         </div>
         <div className="result-actions">
           <Button variant="secondary" disabled={completion.status === 'saving'} onClick={onRestart}>처음부터 다시</Button>
@@ -151,11 +153,12 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
           <section className="found" aria-label="찾은 항목">
             <div className="found-head">
               <span className="found-title">찾은 항목</span>
-              <span className="mono found-count">{enterprise ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}</span>
+              <span className="mono found-count">{enterprise && allLocked ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}</span>
             </div>
             {groups.map(({ id, items }) => {
               const indexes = items.map(({ i }) => i)
-              const count = enterprise ? items.length : indexes.filter((i) => !off.has(i)).length
+              const locked = isRuleLocked(id, mode)
+              const count = locked ? items.length : indexes.filter((i) => !off.has(i)).length
               const state = count === items.length ? 'all' : count === 0 ? 'none' : 'some'
               const open = !collapsed.has(id)
               return (
@@ -164,14 +167,14 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
                     <button type="button" className="group-toggle" aria-expanded={open} aria-label={`${ruleName(id)} ${open ? '접기' : '펼치기'}`} onClick={() => setCollapsed(toggle(collapsed, id))}>
                       <img src={open ? chevronDown : chevronRight} width={16} height={16} alt="" />
                     </button>
-                    {enterprise ? <span className="group-num all fixed" aria-hidden="true">{order.indexOf(id) + 1}</span> : <button type="button" role="checkbox" aria-checked={state === 'some' ? 'mixed' : state === 'all'} aria-label={`${ruleName(id)} 모두 선택`} disabled={editing} className={`group-num ${state}`} onClick={() => toggleGroup(indexes)}>{order.indexOf(id) + 1}</button>}
+                    {locked ? <span className="group-num all fixed" aria-hidden="true">{order.indexOf(id) + 1}</span> : <button type="button" role="checkbox" aria-checked={state === 'some' ? 'mixed' : state === 'all'} aria-label={`${ruleName(id)} 모두 선택`} disabled={editing} className={`group-num ${state}`} onClick={() => toggleGroup(id, indexes)}>{order.indexOf(id) + 1}</button>}
                     <span className="group-name">{ruleName(id)}</span>
-                    {enterprise && <span className="enterprise-fixed">고정</span>}
+                    {locked && <span className="enterprise-fixed">고정</span>}
                     <span className="mono group-count">{state === 'all' ? items.length : `${count}/${items.length}`}</span>
                   </div>
                   {open && <ul className="group-items">{items.map(({ match, i }) => (
                     <li key={i}>
-                      {enterprise ? <div className="item item-locked">
+                      {locked ? <div className="item item-locked">
                         <span className={['name', 'address'].includes(id) ? '' : 'mono'}>{match.value}</span>
                         <span className="pdf-item-page">{match.pageNumber}쪽</span>
                       </div> : <label className={`item ${off.has(i) ? 'off' : ''}`}>

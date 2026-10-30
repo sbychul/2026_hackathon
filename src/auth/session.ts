@@ -29,10 +29,11 @@ export function createSession(api = auth) {
   }
 
   // 시작 시나 세션 변경 시 서버와 저장된 프로필을 다시 확인한다.
+  // 이미 로그인한 사용자의 재확인(창 복귀 등)은 로딩 화면 없이 뒤에서 진행한다.
   async function refresh() {
     const current = ++request
     const previous = state.user
-    update({ pending: true })
+    if (!previous) update({ pending: true })
     try {
       const user = await api.getCurrentUser()
       if (current !== request) return

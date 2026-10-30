@@ -82,4 +82,14 @@ describe('관리자 통계 화면 상태', () => {
     await store.reload()
     expect(store.getSnapshot()).toEqual({ status: 'ready', stats: after })
   })
+
+  it('뒤에서 하는 재조회는 응답 전까지 표시 중인 통계를 유지한다', async () => {
+    const stats = await getMockAdminStats()
+    const store = createAdminStatsStore({ currentUser: async () => admin, stats: async () => stats })
+    await store.reload()
+    const again = store.reload(true)
+    expect(store.getSnapshot()).toEqual({ status: 'ready', stats })
+    await again
+    expect(store.getSnapshot()).toEqual({ status: 'ready', stats })
+  })
 })
