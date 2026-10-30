@@ -5,6 +5,7 @@ import { privacyRegions, type RuleCounts } from '../ocr/privacy-regions'
 import type { OcrLine, OcrProgress } from '../ocr/types'
 import type { PdfMaskRegion } from './export'
 import { hasPageImages, nativeTextLines, rotatedPageBox } from '../ocr/pdf-page'
+import { maskedPreview } from '../ocr/preview'
 
 GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
@@ -98,7 +99,7 @@ export async function scanPdfPrivacy(file: Blob, options: ScanOptions = {}): Pro
           context.fillRect(left, top, right - left, bottom - top)
         }
         // 긴 문서의 모든 미리보기를 메모리에 쌓지 않고 첫 이미지 페이지 두 장만 보관한다.
-        const preview = previews < 2 ? canvas.toDataURL('image/png') : undefined
+        const preview = previews < 2 ? maskedPreview(canvas,base.rotation-renderBase.rotation) : undefined
         if (preview) previews++
         ocrPages++
         pages.push({ pageNumber, imageWidth: canvas.width, imageHeight: canvas.height, lines, preview, method:'ocr',elapsedMs:performance.now()-started })

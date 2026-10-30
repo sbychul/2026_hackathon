@@ -6,6 +6,16 @@ import type { PdfMaskRegion } from '../pdf/export'
 
 export type RuleCounts = Partial<Record<RuleId, number>>
 
+// 가까운 숫자와 구분자 조각만 이어 붙여 번호 내부에 인위적인 공백이 생기지 않게 한다.
+function fragmentSeparator(previous: OcrLine, current: OcrLine): string {
+  const gap=current.box.x-previous.box.x-previous.box.width
+  const close=gap<=Math.min(previous.box.height,current.box.height)
+  const left=previous.text.trim(), right=current.text.trim()
+  const splitSeparator=/(?:\d[-.]|^[-.])$/.test(left)&&/^\d/.test(right)
+    || /\d$/.test(left)&&/^[-.](?:\d|$)/.test(right)
+  return close&&splitSeparator?'':' '
+}
+
 // 같은 줄의 조각을 왼쪽부터 정렬하고 줄 사이에는 개행을 넣어 원래 영역과 대응시킨다.
 function pageText(lines: OcrLine[]) {
   const rows: OcrLine[][] = []
@@ -18,9 +28,9 @@ function pageText(lines: OcrLine[]) {
   const spans:Array<{start:number;end:number;line:OcrLine}>=[]
   for (const row of rows) {
     for (const [index,line] of row.sort((a,b)=>a.box.x-b.box.x).entries()) {
-      if (text) text+=index===0?'\n':' '
+      if (text) text+=index===0?'\n':fragmentSeparator(row[index-1],line)
       const start=text.length
-      text+=line.text
+      text+=line.text.trim()
       spans.push({start,end:text.length,line})
     }
   }

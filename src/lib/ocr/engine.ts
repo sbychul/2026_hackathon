@@ -5,6 +5,7 @@ import { downloadAsset } from './download'
 import type { ModelDownload, OcrLine, OcrProgress } from './types'
 
 const root = new URL(`${import.meta.env.BASE_URL}models/ocr/`, self.location.origin).href
+// 실행기 파일명에 스레드가 포함되어 있어도 1로 고정하면 격리 헤더 없이 단일 스레드로 실행한다.
 ort.env.wasm.numThreads = 1
 ort.env.wasm.wasmPaths = `${root}runtime/`
 ort.env.logLevel = 'error'

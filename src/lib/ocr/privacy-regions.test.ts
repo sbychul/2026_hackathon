@@ -8,6 +8,21 @@ function line(text:string,x:number,y:number,width=180):OcrLine {
 }
 
 describe('기본 브랜치 공통 규칙 전체 적용',()=>{
+  it.each([['010-','1234-','5678'],['010','-1234','-5678'],['010- ','1234- ','5678']])('가까운 번호 조각의 구분자를 이어 탐지하고 모든 원래 영역을 가린다: %j',(...parts)=>{
+    const result=privacyRegions(parts.map((text,i)=>line(text,20+i*62,20,60)),1,800,1000,800,1000)
+    expect(result.counts).toEqual({phone:1})
+    expect(result.regions).toHaveLength(3)
+    expect(result.regions.map(region=>region.x)).toEqual([16,78,140])
+  })
+  it('다른 열이나 다른 줄의 숫자를 한 전화번호로 합치지 않는다',()=>{
+    for (const parts of [
+      [line('010-',20,20,40),line('1234-',240,20,50),line('5678',500,20,50)],
+      [line('010-',20,20,40),line('1234-',20,60,50),line('5678',20,100,50)],
+    ]) expect(privacyRegions(parts,1,800,1000,800,1000).count).toBe(0)
+  })
+  it('같은 줄의 완성된 두 전화번호를 각각 유지한다',()=>{
+    expect(privacyRegions([line('010-1234-5678',20,20),line('010-9876-5432',202,20)],1,800,1000,800,1000).counts).toEqual({phone:2})
+  })
   it('주민번호·전화·이메일·카드·이름·주소를 모두 적용한다',()=>{
     const values=['900101-1234567','010-1234-5678','person@example.com','4111-1111-1111-1111','이름: 김가온','서울특별시 강남구 테헤란로 123']
     const result=privacyRegions(values.map((text,i)=>line(text,30,30+i*40)),1,800,1000,800,1000)

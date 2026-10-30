@@ -29,7 +29,7 @@ async function clearResult(resetModels = true) {
 // 처리 중에는 선택과 중복 실행을 막는다.
 function setBusy(value:boolean):void {
   busy=value;file.disabled=value;start.disabled=value||!selectedFile
-  download.disabled=value||!result?.count
+  download.disabled=value||!result
   drop.setAttribute('aria-busy',String(value))
 }
 
