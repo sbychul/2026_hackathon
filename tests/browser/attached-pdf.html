@@ -1,0 +1,8 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>첨부 PDF 저장 검사</title>
+<style>body{font:17px system-ui;margin:24px;background:#eef2f7;color:#18263b}button{font:inherit;padding:12px;margin:6px;background:#17549b;color:white;border:0;border-radius:6px}pre{white-space:pre-wrap;background:white;padding:16px}#views{display:flex;gap:24px;align-items:start}canvas{width:560px;max-width:45vw;border:1px solid #aaa}h2{font-size:18px}</style>
+<h1>거래처 담당자 등록서 · 실제 다운로드 검사</h1>
+<p>첨부 파일의 로컬 사본을 읽습니다. 원본은 수정하지 않습니다. 검증용 좌표 연결은 탐지된 글자 조각 전체를 가리므로 라벨도 함께 가려질 수 있습니다.</p>
+<button id="load">첨부 등록서 열기</button><button id="save" disabled>가린 등록서 다운로드</button><button id="verify">실제 다운로드 파일 검사</button>
+<pre id="status" role="status">첨부 등록서를 열어 주세요.</pre><details><summary>추출 원문과 탐지 건수</summary><pre id="text"></pre></details>
+<div id="views"><section><h2>원본</h2><div id="before"></div></section><section><h2>내려받은 결과</h2><div id="after"></div></section></div>
+<script type="module" src="./attached-pdf.ts"></script></html>

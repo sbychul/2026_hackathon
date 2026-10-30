@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PDFDocument } from 'pdf-lib'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import { exportMaskedPdf, type PdfMaskRegion } from './export'
+import { downloadMaskedPdf, exportMaskedPdf, type PdfMaskRegion } from './export'
 
 const region: PdfMaskRegion = { pageNumber: 1, x: 10.25, y: 20.25, width: 40, height: 12 }
 
@@ -36,7 +36,7 @@ function fixture() {
 }
 
 // 다음 검증에 브라우저 대체 객체가 남지 않게 복원한다.
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
 
 describe('가린 PDF 저장', () => {
   it('모든 페이지를 다시 그려 원래 크기와 페이지 수를 유지한다', async () => {
@@ -86,5 +86,34 @@ describe('가린 PDF 저장', () => {
   it('과도한 저장 배율을 거부한다', async () => {
     const { source } = fixture()
     await expect(exportMaskedPdf(source, [], { scale: Infinity })).rejects.toThrow('배율')
+  })
+
+  it('다운로드 파일명과 임시 주소의 해제를 검증한다', async () => {
+    const { source } = fixture()
+    vi.useFakeTimers()
+    const createElement = document.createElement
+    const link = { href: '', download: '', click: vi.fn(), remove: vi.fn() }
+    vi.stubGlobal('document', {
+      createElement: (tag: string) => tag === 'a' ? link : createElement.call(document, tag),
+      body: { appendChild: vi.fn() },
+    })
+    const createUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:검증')
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    await downloadMaskedPdf(source, [region], '가림 결과')
+    expect(createUrl).toHaveBeenCalledOnce()
+    expect(link.download).toBe('가림 결과.pdf')
+    expect(link.click).toHaveBeenCalledOnce()
+    expect(link.remove).toHaveBeenCalledOnce()
+    expect(revokeUrl).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(60_000)
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:검증')
+  })
+
+  it('저장 실패 시 다운로드를 시작하지 않는다', async () => {
+    const { source, render } = fixture()
+    render.mockImplementationOnce(() => ({ promise: Promise.reject(new Error('페이지 오류')) }))
+    const createUrl = vi.spyOn(URL, 'createObjectURL')
+    await expect(downloadMaskedPdf(source, [region])).rejects.toThrow('페이지 오류')
+    expect(createUrl).not.toHaveBeenCalled()
   })
 })
