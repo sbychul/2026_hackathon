@@ -123,3 +123,65 @@
   gap: 6px;
 }
 
+.has-pdf {
+  border-color: var(--line-strong);
+}
+
+.pdf-attachment {
+  padding: 18px 20px 0;
+}
+
+.pdf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 8px 8px 8px 10px;
+  border: 1px solid var(--line-default);
+  border-radius: 8px;
+  background: var(--bg-page);
+}
+
+.pdf-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pdf-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.pdf-size {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-tertiary);
+}
+
+.pdf-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.has-pdf .input-text:disabled {
+  padding-top: 12px;
+  min-height: 44px;
+  font-size: 15px;
+  line-height: 24px;
+  cursor: not-allowed;
+}
+
