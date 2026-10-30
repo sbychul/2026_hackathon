@@ -1,3 +1,4 @@
+import { getMaskingMode } from './maskingPolicy'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import MainPage from '../../pages/MainPage'
@@ -10,7 +11,7 @@ const text = '전화 010-0000-0001, 메일 demo@example.org'
 
 describe('기업 화면의 조작과 안내', () => {
   it.each(['employee', 'admin'] as const)('%s의 텍스트 화면에는 해제 조작 없이 고정 안내와 가린 결과가 있다', (role) => {
-    const html = renderToStaticMarkup(<ResultPage text={text} role={role} onRestart={noop} />)
+    const html = renderToStaticMarkup(<ResultPage text={text} mode={getMaskingMode(role)} onRestart={noop} />)
     expect(html).not.toContain('type="checkbox"')
     expect(html).not.toContain('role="checkbox"')
     expect(html).toContain('2건을 모두 가렸어요')
@@ -28,8 +29,8 @@ describe('기업 화면의 조작과 안내', () => {
   })
 
   it.each(['employee', 'admin'] as const)('%s의 입력 화면과 PDF 읽기 중에도 기업 안내를 표시한다', (role) => {
-    const input = renderToStaticMarkup(<MainPage role={role} onFind={noop} onFindPdf={noop} />)
-    const pdf = renderToStaticMarkup(<PdfResultPage role={role} file={new File([], '가상.pdf', { type: 'application/pdf' })} onRestart={noop} />)
+    const input = renderToStaticMarkup(<MainPage mode={getMaskingMode(role)} onFind={noop} onFindPdf={noop} />)
+    const pdf = renderToStaticMarkup(<PdfResultPage mode={getMaskingMode(role)} file={new File([], '가상.pdf', { type: 'application/pdf' })} onRestart={noop} />)
     expect(input).toContain('기업 개인정보 처리 안내')
     expect(input).toContain('공유 전에 개인정보를 가려요')
     expect(pdf).toContain('기업 개인정보 처리 안내')

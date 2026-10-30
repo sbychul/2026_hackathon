@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
-import { isEnterpriseRole, selectAutomaticMatches, type MaskingRole } from '../components/enterprise/maskingPolicy'
+import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
 import { detect } from '../masking/detect'
 import { mask, type MaskRange } from '../masking/mask'
@@ -63,12 +63,12 @@ function domPoint(root: Node, offset: number): [Node, number] {
 interface ResultPageProps {
   text: string
   onRestart: () => void
-  role?: MaskingRole
+  mode?: MaskingMode
 }
 
 // 개인은 항목을 선택하고 기업은 모두 가린다. 직접 추가한 가림과 같은 결과를 복사한다.
-export default function ResultPage({ text, onRestart, role = 'personal' }: ResultPageProps) {
-  const enterprise = isEnterpriseRole(role)
+export default function ResultPage({ text, onRestart, mode = 'personal' }: ResultPageProps) {
+  const enterprise = mode === 'company'
   const matches = useMemo(() => detect(text), [text])
   const segments = useMemo(() => toSegments(text, matches), [text, matches])
   // 체크를 끈 항목의 순번. 처음에는 전부 켜져 있다.
@@ -79,9 +79,17 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
   // 사용자가 원문에서 드래그해 직접 가린 구간과, 지금 드래그로 고른 구간
   const [manual, setManual] = useState<MaskRange[]>([])
   const [pending, setPending] = useState<MaskRange | null>(null)
+  // 드래그 대신 글자를 입력해 가리는 칸과, 화면 읽기 프로그램에 알릴 처리 결과
+  const [query, setQuery] = useState('')
+  const [notice, setNotice] = useState('')
   const sourceRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const queryRef = useRef<HTMLInputElement>(null)
 
-  const selected = selectAutomaticMatches(matches, off, role)
+  // 화면이 바뀌면 초점을 제목으로 옮겨 키보드·화면 읽기 사용자가 위치를 잃지 않게 한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
+
+  const selected = selectAutomaticMatches(matches, off, mode)
   const maskedRanges = mergeRanges([...selected, ...manual])
   // 화면과 복사가 같은 결과를 쓰도록 mask() 결과 하나만 만든다. mask()는 글자 수를 바꾸지 않는다.
   const masked = mask(text, maskedRanges)
@@ -106,26 +114,56 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
     }
   }, [manual])
 
-  // 원문 칸에서 드래그로 고른 구간을 기억한다. 앞뒤 공백은 뺀다.
-  const readSelection = () => {
-    const root = sourceRef.current
-    const sel = getSelection()
-    if (!root || !sel || sel.isCollapsed || sel.rangeCount === 0) return setPending(null)
-    const r = sel.getRangeAt(0)
-    if (!root.contains(r.startContainer) || !root.contains(r.endContainer)) return setPending(null)
-    let start = textOffset(root, r.startContainer, r.startOffset)
-    let end = textOffset(root, r.endContainer, r.endOffset)
-    while (start < end && /\s/.test(text[start]!)) start++
-    while (end > start && /\s/.test(text[end - 1]!)) end--
-    setPending(end > start ? { start, end } : null)
-  }
+  // 원문 칸에서 마우스·터치·키보드로 고른 구간을 기억한다. 앞뒤 공백은 뺀다.
+  // 모바일은 가리기 버튼을 누르는 순간 선택이 풀리므로, 원문 밖에서 선택이 풀리면 마지막 선택을 유지한다.
+  useEffect(() => {
+    const readSelection = () => {
+      const root = sourceRef.current
+      const sel = getSelection()
+      if (!root || !sel || sel.rangeCount === 0) return
+      const r = sel.getRangeAt(0)
+      if (!root.contains(r.startContainer) || !root.contains(r.endContainer)) return
+      if (sel.isCollapsed) return setPending(null)
+      let start = textOffset(root, r.startContainer, r.startOffset)
+      let end = textOffset(root, r.endContainer, r.endOffset)
+      while (start < end && /\s/.test(text[start]!)) start++
+      while (end > start && /\s/.test(text[end - 1]!)) end--
+      setPending(end > start ? { start, end } : null)
+    }
+    document.addEventListener('selectionchange', readSelection)
+    return () => document.removeEventListener('selectionchange', readSelection)
+  }, [text])
 
   // 고른 구간을 직접 가린 목록에 넣고 선택을 지운다.
   const addManual = () => {
     if (!pending) return
     setManual([...manual, pending])
     setPending(null)
+    setNotice('선택한 부분을 가렸어요.')
     getSelection()?.removeAllRanges()
+  }
+
+  // 드래그의 대체 방법. 입력한 글자가 원문에 나오는 곳을 모두 직접 가린 목록에 넣는다.
+  const addByText = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const word = query.trim()
+    if (!word) return
+    const found: MaskRange[] = []
+    for (let at = text.indexOf(word); at !== -1; at = text.indexOf(word, at + word.length)) {
+      found.push({ start: at, end: at + word.length })
+    }
+    if (!found.length) return setNotice('원문에서 입력한 글자를 찾지 못했어요.')
+    const fresh = found.filter((r) => !manual.some((m) => m.start === r.start && m.end === r.end))
+    setManual([...manual, ...fresh])
+    setQuery('')
+    setNotice(`${found.length}곳을 가렸어요.`)
+  }
+
+  // 직접 가린 구간을 취소하고, 사라진 버튼 대신 입력 칸으로 초점을 옮긴다.
+  const cancelManual = (k: number) => {
+    setManual(manual.filter((_, j) => j !== k))
+    setNotice('가리기를 취소했어요.')
+    queryRef.current?.focus()
   }
 
   // 집합에 값이 있으면 빼고 없으면 넣은 새 집합을 만든다.
@@ -150,10 +188,12 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
       await navigator.clipboard.writeText(masked)
       setCopyError(false)
       setCopied(true)
+      setNotice('가린 결과를 복사했어요.')
       setTimeout(() => setCopied(false), 2000)
     } catch {
       setCopied(false)
       setCopyError(true)
+      setNotice('복사하지 못했어요. 가린 결과 칸의 글을 직접 선택해 복사해 주세요.')
       setTimeout(() => setCopyError(false), 2000)
     }
   }
@@ -163,12 +203,13 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
       {enterprise && <p className="enterprise-eyebrow">기업 모드 · 자동 탐지 전체 가림</p>}
       <div className="result-head">
         <div>
-          <h1 className="result-title">
+          <h1 className="result-title" ref={titleRef} tabIndex={-1}>
             {matches.length ? enterprise ? `${matches.length}건을 모두 가렸어요` : `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
           </h1>
           <p className="result-desc">
-            {enterprise ? '자동 탐지된 항목은 해제할 수 없어요. 놓친 부분은 원문에서 직접 추가로 가려 주세요.' : '체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그한 뒤 가리기를 누르세요.'}
+            {enterprise ? '자동 탐지된 항목은 해제할 수 없어요. 놓친 부분은 원문에서 직접 추가로 가려 주세요.' : '체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그해 가리거나, 가릴 글자를 입력하세요.'}
           </p>
+          <p className="visually-hidden" role="status">{notice}</p>
         </div>
         <div className="result-actions">
           <Button variant="secondary" onClick={onRestart}>
@@ -262,7 +303,7 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
                       variant="text"
                       className="manual-cancel"
                       aria-label={`${text.slice(r.start, r.end)} 가리기 취소`}
-                      onClick={() => setManual(manual.filter((_, j) => j !== k))}
+                      onClick={() => cancelManual(k)}
                     >
                       취소
                     </Button>
@@ -281,7 +322,21 @@ export default function ResultPage({ text, onRestart, role = 'personal' }: Resul
                 선택한 부분 가리기
               </Button>
             </div>
-            <div ref={sourceRef} className="doc-text" onMouseUp={readSelection} onKeyUp={readSelection}>
+            <form className="manual-form" onSubmit={addByText}>
+              <label htmlFor="manual-query" className="manual-form-label">가릴 글자 입력</label>
+              <input
+                id="manual-query"
+                ref={queryRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="예: 김민수"
+                autoComplete="off"
+              />
+              <Button type="submit" variant="secondary" disabled={!query.trim()}>
+                찾아서 가리기
+              </Button>
+            </form>
+            <div ref={sourceRef} className="doc-text">
               {segments.map((s, k) =>
                 s.range ? (
                   <mark key={k} className={`hit ${enterprise || !off.has(s.i!) ? 'on' : ''}`}>

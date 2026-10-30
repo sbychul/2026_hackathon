@@ -61,6 +61,8 @@
 
 .input-box:has(.input-text:focus-visible) {
   border-color: var(--accent-default);
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
 }
 
 .tool-row {
@@ -148,10 +150,13 @@
   min-width: 0;
 }
 
+/* 긴 파일명은 두 줄까지 줄바꿈해 좁은 화면에서도 앞뒤를 확인할 수 있게 한다. */
 .pdf-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 500;
   line-height: 20px;
@@ -254,5 +259,21 @@
   .enterprise-input .input-box { padding: 20px; }
   .enterprise-input .tool-row { flex-wrap: wrap; }
   .enterprise-input .run { margin-left: auto; }
+}
+
+/* 손가락으로 누르는 화면에서는 작은 버튼의 누름 영역을 44px로 키운다. */
+@media (pointer: coarse) {
+  .attach {
+    min-height: 44px;
+  }
+
+  .pdf-remove {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool-row .btn {
+    min-height: 44px;
+  }
 }
 

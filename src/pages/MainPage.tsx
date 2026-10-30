@@ -3,7 +3,7 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
-import { isEnterpriseRole, type MaskingRole } from '../components/enterprise/maskingPolicy'
+import { type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import lockIcon from '../assets/lock.svg'
 import clipIcon from '../assets/clip.svg'
@@ -12,12 +12,16 @@ import closeIcon from '../assets/close.svg'
 import './MainPage.css'
 
 // 메인(입력) 화면. 글을 붙여넣거나 PDF를 골라 개인정보 찾기를 시작한다.
-export default function MainPage({ onFind, onFindPdf, role = 'personal' }: { onFind: (text: string) => void; onFindPdf: (file: File) => void; role?: MaskingRole }) {
-  const enterprise = isEnterpriseRole(role)
+export default function MainPage({ onFind, onFindPdf, mode = 'personal' }: { onFind: (text: string) => void; onFindPdf: (file: File) => void; mode?: MaskingMode }) {
+  const enterprise = mode === 'company'
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
   const [pageCount, setPageCount] = useState<{ file: File; count: number } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // 결과 화면에서 돌아오면 초점을 제목으로 옮겨 사라진 버튼에 초점이 남지 않게 한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
   useEffect(() => {
     if (!pdf) return
@@ -66,7 +70,7 @@ export default function MainPage({ onFind, onFindPdf, role = 'personal' }: { onF
     <main className={`main-body ${enterprise ? 'enterprise-page enterprise-input' : ''}`}>
       <div className="center-col">
         {enterprise && <p className="enterprise-eyebrow">기업 모드 · 개인정보 가리기</p>}
-        <h1 className="title">{enterprise ? '공유 전에 개인정보를 가려요' : '개인정보 가리기'}</h1>
+        <h1 className="title" ref={titleRef} tabIndex={-1}>{enterprise ? '공유 전에 개인정보를 가려요' : '개인정보 가리기'}</h1>
         <p className="desc">
           <img src={lockIcon} width={15} height={15} alt="" />
           넣은 글과 파일은 이 브라우저 밖으로 나가지 않아요.
@@ -86,7 +90,7 @@ export default function MainPage({ onFind, onFindPdf, role = 'personal' }: { onF
             <div className="pdf-chip">
               <img src={pdfIcon} width={28} height={28} alt="" />
               <div className="pdf-info">
-                <span className="pdf-name">{pdf.name}</span>
+                <span className="pdf-name" title={pdf.name}>{pdf.name}</span>
                 <span className="pdf-size">PDF · {pageCount?.file === pdf ? `${pageCount.count}쪽 · ` : ''}{Math.ceil(pdf.size / 1024)}KB</span>
               </div>
               <button type="button" className="pdf-remove" aria-label="PDF 첨부 제거" onClick={() => setPdf(null)}>

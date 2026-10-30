@@ -8,6 +8,38 @@ function line(text:string,x:number,y:number,width=180):OcrLine {
 }
 
 describe('기본 브랜치 공통 규칙 전체 적용',()=>{
+  it.each([
+    ['010-12','34-5678'],
+    ['010-1','23','4-5678'],
+    ['01012','345678'],
+  ])('숫자 중간에서 잘린 인접 조각을 한 번호로 탐지한다: %j',(...parts)=>{
+    const result=privacyRegions(parts.map((text,i)=>line(text,20+i*60,20,60)),1,800,1000,800,1000)
+    expect(result.counts).toEqual({phone:1})
+    expect(result.regions).toHaveLength(parts.length)
+    expect(result.regions.map(region=>region.x)).toEqual(parts.map((_,i)=>16+i*60))
+  })
+  it('서로 먼 표 열의 숫자는 공백 구분 전화번호로 탐지하지 않는다',()=>{
+    const result=privacyRegions([line('010',20,20,30),line('1234',300,20,40),line('5678',650,20,40)],1,1000,1000,1000,1000)
+    expect(result.count).toBe(0)
+    expect(result.regions).toEqual([])
+  })
+  it('가까운 공백 구분 전화번호는 두 탐지 경로에서 한 번만 센다',()=>{
+    const result=privacyRegions(['010','1234','5678'].map((text,i)=>line(text,20+i*62,20,60)),1,800,1000,800,1000)
+    expect(result.counts).toEqual({phone:1})
+    expect(result.regions).toHaveLength(3)
+  })
+  it('한 조각 안의 기존 번호와 다음 조각까지 이어지는 번호를 각각 가린다',()=>{
+    const result=privacyRegions([line('010-9876-5432 / 010-12',20,20,240),line('34-5678',260,20,80)],1,800,1000,800,1000)
+    expect(result.counts).toEqual({phone:2})
+    expect(result.regions).toHaveLength(2)
+  })
+  it('숫자 결합이 공백 구분 카드번호와 최신 공통 계좌번호 탐지를 없애지 않는다',()=>{
+    const parts=['4111','1111','1111','1111'].map((text,i)=>line(text,20+i*62,20,60))
+    parts.push(line('계좌번호: 123-456789-012',20,60,300))
+    const result=privacyRegions(parts,1,800,1000,800,1000)
+    expect(result.counts).toEqual({card:1,account:1})
+    expect(result.regions).toHaveLength(5)
+  })
   it.each([['010-','1234-','5678'],['010','-1234','-5678'],['010- ','1234- ','5678']])('가까운 번호 조각의 구분자를 이어 탐지하고 모든 원래 영역을 가린다: %j',(...parts)=>{
     const result=privacyRegions(parts.map((text,i)=>line(text,20+i*62,20,60)),1,800,1000,800,1000)
     expect(result.counts).toEqual({phone:1})
