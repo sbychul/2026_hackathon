@@ -70,7 +70,7 @@ export default function MainPage({ onFind, onFindPdf, mode = 'personal' }: { onF
     <main className={`main-body ${enterprise ? 'enterprise-page enterprise-input' : ''}`}>
       <div className="center-col">
         {enterprise && <p className="enterprise-eyebrow">기업 모드 · 개인정보 가리기</p>}
-        <h1 className="title" ref={titleRef} tabIndex={-1}>{enterprise ? '공유 전에 개인정보를 가려요' : '개인정보 가리기'}</h1>
+        <h1 className="title" ref={titleRef} tabIndex={-1}>{enterprise ? '공유 전에 개인정보를 가려요' : '민감한 정보를 가려요'}</h1>
         <p className="desc">
           <img src={lockIcon} width={15} height={15} alt="" />
           넣은 글과 파일은 이 브라우저 밖으로 나가지 않아요.
