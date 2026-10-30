@@ -248,6 +248,47 @@
   color: var(--text-secondary);
 }
 
+/* 드래그 대신 글자를 입력해 가리는 칸 */
+.manual-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line-default);
+}
+
+.manual-form-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+.manual-form input {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  font: 400 15px/22px var(--font-sans);
+  color: var(--text-primary);
+}
+
+.manual-form input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.manual-form .btn {
+  padding-block: 8px;
+  font-size: 14px;
+}
+
+.manual-form .btn:disabled {
+  opacity: 0.35;
+}
+
 .doc-text {
   padding: 20px 24px 24px;
   font-size: 16px;
@@ -307,4 +348,155 @@
     border-left: 0;
     border-top: 1px solid var(--line-default);
   }
+
+  /* 좁은 화면에서는 결과 버튼을 줄바꿈하고 한 줄을 나눠 채운다. */
+  .result-actions {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+  }
+
+  .result-actions .btn {
+    flex: 1 1 auto;
+  }
+
+  .doc-head,
+  .manual-form,
+  .doc-text {
+    padding-inline: 16px;
+  }
+}
+
+/* 손가락으로 누르는 화면에서는 작은 버튼과 체크 줄의 누름 영역을 키운다. */
+@media (pointer: coarse) {
+  .result-actions .btn {
+    min-height: 44px;
+  }
+
+  .group-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .group-num {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .item {
+    min-height: 44px;
+    padding-left: 46px;
+  }
+
+  .item input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .manual-item {
+    padding-left: 42px;
+  }
+
+  .doc-action,
+  .manual-cancel {
+    min-height: 44px;
+    padding-inline: 8px;
+  }
+
+  .manual-form input,
+  .manual-form .btn {
+    min-height: 44px;
+  }
+}
+
+.enterprise-result {
+  padding: 64px;
+  gap: 24px;
+}
+
+.enterprise-result .result-head {
+  display: contents;
+}
+
+.enterprise-result .result-head > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.enterprise-result .result-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.55;
+  letter-spacing: normal;
+}
+
+.enterprise-result .result-desc {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.enterprise-result > .enterprise-notice { order: 1; }
+.enterprise-result .result-actions { order: 2; }
+.enterprise-result > .work-area { order: 3; align-items: flex-start; }
+.enterprise-result > [role] { order: 3; }
+
+.enterprise-result .found {
+  width: 280px;
+  padding: 24px;
+  border: 1px solid var(--line-default);
+  background: var(--bg-surface);
+}
+
+.enterprise-result .found-head {
+  flex-wrap: wrap;
+  gap: 12px;
+  border: 0;
+}
+
+.enterprise-result .found-title,
+.enterprise-result .doc-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.enterprise-result .group-head { gap: 6px; }
+.enterprise-result .group-name { font-size: 13px; }
+.enterprise-result .group-count { color: var(--text-secondary); }
+.enterprise-result .item-locked { padding-left: 0; font-size: 13px; }
+
+.enterprise-result .doc {
+  gap: 24px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.enterprise-result .doc-col {
+  min-width: 0;
+  border: 1px solid var(--line-default);
+  background: var(--bg-surface);
+}
+
+.enterprise-result .doc-head {
+  border: 0;
+  padding: 24px 24px 0;
+  flex-wrap: wrap;
+}
+
+.enterprise-result .doc-text { line-height: 1.8; }
+
+@media (max-width: 1100px) {
+  .enterprise-result .doc { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 900px) {
+  .enterprise-result { padding: 24px 20px; }
+  .enterprise-result .result-title { font-size: 26px; }
+  .enterprise-result > .work-area { align-items: stretch; }
+  .enterprise-result .found { width: auto; }
+  .enterprise-result .result-actions > .btn { flex: 1; }
 }

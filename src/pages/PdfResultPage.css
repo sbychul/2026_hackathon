@@ -25,3 +25,12 @@
   border-color: var(--accent-default);
   background: var(--accent-default) url('../assets/check.svg') center / 12px 12px no-repeat;
 }
+.pdf-manual-list { margin-top: 20px; padding: 24px; border-top: 1px solid var(--line-default); }
+.pdf-manual-list h2 { margin: 0 0 16px; font-size: 16px; }
+.pdf-manual-item { padding: 20px; margin-bottom: 12px; border: 1px solid var(--line-default); }
+.pdf-manual-item h3 { margin: 0 0 12px; font-size: 16px; }
+.pdf-manual-list p { font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.pdf-coordinate-panel form { display: grid; gap: 12px; margin-top: 16px; }
+.pdf-coordinate-panel label { display: grid; gap: 6px; font-size: 13px; }
+.pdf-coordinate-panel input { min-width: 0; width: 100%; padding: 8px; color: var(--text-primary); background: var(--bg-surface); border: 1px solid var(--line-default); }
+.pdf-result .group-num:disabled, .pdf-result .item input:disabled { cursor: default; }
