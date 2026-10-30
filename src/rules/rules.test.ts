@@ -28,8 +28,7 @@ describe('이메일 오탐 방지', () => {
     'test@example.c', 'test @example.com', 'test@example .com',
     '.test@example.com', 'test.@example.com', 'te..st@example.com',
     'test@@example.com', 'test@-example.com', 'test@example-.com',
-    'test@example..com', 'test@sub.example..com', 'test@example.com1',
-    'test@example.com_extra'])(
+    'test@example..com', 'test@sub.example..com', 'test@example.com1'])(
     '불완전하거나 잘못된 이메일을 탐지하지 않는다: %s', (text) => {
       expect(find('email', text)).toEqual([])
     },
@@ -44,24 +43,53 @@ describe('이메일 오탐 방지', () => {
   it('쉼표와 마침표로 구분된 이메일을 각각 찾는다', () => {
     expect(find('email', 'a@example.com, b@example.org.')).toEqual(['a@example.com', 'b@example.org'])
   })
+
+  it.each([
+    ['메일 a@example.com-담당', 'a@example.com'],
+    ['a@example.com_', 'a@example.com'],
+    ['test@example.com_extra', 'test@example.com'],
+    ['메일 a@example.com- b@example.org_', 'a@example.com', 'b@example.org'],
+  ])('이메일 뒤 하이픈과 밑줄 때문에 정상 주소를 놓치지 않는다: %s', (text, ...emails) => {
+    expect(find('email', text)).toEqual(emails)
+    const matches = detect(text, RULES.filter((rule) => rule.id === 'email'))
+    expect(mask(text, matches)).not.toContain('a@example.com')
+    expect(mask(text, matches)).not.toContain('test@example.com')
+  })
 })
 
 describe('휴대전화 오탐 방지', () => {
   it.each(['010-123-456', '02-1234-5678', '031-123-4567', '012-1234-5678',
     '010-123-4567', '0101234567', '010-12345678', '0101234-5678',
     '010--1234-5678', '010123456789', '101012345678', '010-1234-56789',
-    '010-1234-5678-9'])(
+    '010-1234 5678', '010.1234-5678', '010 1234.5678', '011-123 4567'])(
     '휴대전화가 아니거나 자릿수와 구분자가 잘못되면 탐지하지 않는다: %s', (text) => {
       expect(find('phone', text)).toEqual([])
     },
   )
 
   it.each(['010-1234-5678', '01012345678', '011-123-4567', '0111234567',
-    '016-1234-5678', '0171234567', '018-123-4567', '01912345678'])(
-    '하이픈이 있거나 없는 휴대전화를 찾는다: %s', (phone) => {
+    '016-1234-5678', '0171234567', '018-123-4567', '01912345678',
+    '010 1234 5678', '010.1234.5678', '011 123 4567', '011.123.4567',
+    '011 1234 5678', '011.1234.5678'])(
+    '하이픈·공백·점 구분자와 붙여 쓴 휴대전화를 찾는다: %s', (phone) => {
       expect(find('phone', `연락처(${phone})`)).toEqual([phone])
     },
   )
+
+  it.each([
+    ['TEL 010-1234-5678-', '010-1234-5678'],
+    ['연락처:-010-1234-5678', '010-1234-5678'],
+    ['010-1234-5678-9', '010-1234-5678'],
+    ['번호01012345678입니다', '01012345678'],
+    ['번호0111234567입니다', '0111234567'],
+    ['연락처 010 1234 5678', '010 1234 5678'],
+    ['번호010.1234.5678입니다', '010.1234.5678'],
+    ['연락처:-010 1234 5678-', '010 1234 5678'],
+  ])('문장과 구두점 사이에서도 전화번호의 정확한 구간을 찾는다: %s', (text, phone) => {
+    expect(find('phone', text)).toEqual([phone])
+    const matches = detect(text, RULES.filter((rule) => rule.id === 'phone'))
+    expect(mask(text, matches)).toBe(text.replace(phone, '*'.repeat(phone.length)))
+  })
 })
 
 describe('이름 오탐 방지', () => {
