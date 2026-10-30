@@ -15,6 +15,10 @@ export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string)
   const [pdf, setPdf] = useState<File | null>(null)
   const [pageCount, setPageCount] = useState<{ file: File; count: number } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // 결과 화면에서 돌아오면 초점을 제목으로 옮겨 사라진 버튼에 초점이 남지 않게 한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
   useEffect(() => {
     if (!pdf) return
@@ -62,7 +66,7 @@ export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string)
   return (
     <main className="main-body">
       <div className="center-col">
-        <h1 className="title">개인정보 가리기</h1>
+        <h1 className="title" ref={titleRef} tabIndex={-1}>개인정보 가리기</h1>
         <p className="desc">
           <img src={lockIcon} width={15} height={15} alt="" />
           넣은 글과 파일은 이 브라우저 밖으로 나가지 않아요.
@@ -73,7 +77,7 @@ export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string)
             <div className="pdf-chip">
               <img src={pdfIcon} width={28} height={28} alt="" />
               <div className="pdf-info">
-                <span className="pdf-name">{pdf.name}</span>
+                <span className="pdf-name" title={pdf.name}>{pdf.name}</span>
                 <span className="pdf-size">PDF · {pageCount?.file === pdf ? `${pageCount.count}쪽 · ` : ''}{Math.ceil(pdf.size / 1024)}KB</span>
               </div>
               <button type="button" className="pdf-remove" aria-label="PDF 첨부 제거" onClick={() => setPdf(null)}>

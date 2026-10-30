@@ -7,7 +7,8 @@
   --line-strong: #111;
   --text-primary: #111;
   --text-secondary: #55554f;
-  --text-tertiary: #8a8a84;
+  /* 흰 배경 5.3:1, 페이지 배경 4.8:1로 작은 글자 대비 기준(4.5:1)을 넘긴다. 시안 값은 #8a8a84(3.5:1). */
+  --text-tertiary: #6b6b65;
   --accent-default: #0f7b3f;
   --accent-on: #fff;
   --accent-soft: #e3f0e7;
@@ -39,4 +40,19 @@ textarea {
 :focus-visible {
   outline: 2px solid var(--accent-default);
   outline-offset: 2px;
+}
+
+/* 화면 전환 때 코드로 초점만 옮기는 제목에는 테두리를 그리지 않는다. */
+h1[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* 화면에는 보이지 않고 화면 읽기 프로그램만 읽는 글 */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
