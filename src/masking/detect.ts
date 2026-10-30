@@ -7,6 +7,20 @@ export interface Match {
   end: number
 }
 
+// 전달받은 탐지 목록의 룰별 건수를 세고, 탐지되지 않은 룰도 0으로 반환한다.
+export function countByRule(matches: readonly Match[]): Record<RuleId, number> {
+  const counts: Record<RuleId, number> = {
+    rrn: 0,
+    phone: 0,
+    email: 0,
+    card: 0,
+    name: 0,
+    address: 0,
+  }
+  for (const match of matches) counts[match.ruleId] += 1
+  return counts
+}
+
 // 텍스트에서 룰에 걸리는 구간을 찾아 앞에서부터 순서대로 반환한다.
 export function detect(text: string, rules: Rule[] = RULES): Match[] {
   const found: Match[] = []
