@@ -5,7 +5,7 @@ import MainPage from './pages/MainPage'
 import ResultPage from './pages/ResultPage'
 import PdfResultPage from './pages/PdfResultPage'
 import LoginPage from './pages/LoginPage'
-import Button from './components/Button'
+import AdminPage from './pages/AdminPage'
 import { useSession } from './auth/useSession'
 import './App.css'
 
@@ -58,7 +58,7 @@ export default function App() {
         </div>}
         <div hidden={auth.pending} style={auth.pending ? undefined : { display: 'flex', flexDirection: 'column', flex: 1 }}>
           {dashboard && user?.role === 'admin'
-            ? <main className="login-page"><h1>관리자 통계</h1><p>통계 화면은 준비 중이에요.</p><Button onClick={() => setDashboard(false)}>가리기로 돌아가기</Button></main>
+            ? <AdminPage onBack={() => setDashboard(false)} />
             : <MaskingWorkspace key={`${auth.revision}-${personal}`} />}
         </div>
       </>}
