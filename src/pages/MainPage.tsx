@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
+import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
+import { isEnterpriseRole, type MaskingRole } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import lockIcon from '../assets/lock.svg'
 import clipIcon from '../assets/clip.svg'
@@ -10,7 +12,8 @@ import closeIcon from '../assets/close.svg'
 import './MainPage.css'
 
 // 메인(입력) 화면. 글을 붙여넣거나 PDF를 골라 개인정보 찾기를 시작한다.
-export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string) => void; onFindPdf: (file: File) => void }) {
+export default function MainPage({ onFind, onFindPdf, role = 'personal' }: { onFind: (text: string) => void; onFindPdf: (file: File) => void; role?: MaskingRole }) {
+  const enterprise = isEnterpriseRole(role)
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
   const [pageCount, setPageCount] = useState<{ file: File; count: number } | null>(null)
@@ -60,15 +63,25 @@ export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string)
   }
 
   return (
-    <main className="main-body">
+    <main className={`main-body ${enterprise ? 'enterprise-page enterprise-input' : ''}`}>
       <div className="center-col">
-        <h1 className="title">개인정보 가리기</h1>
+        {enterprise && <p className="enterprise-eyebrow">기업 모드 · 개인정보 가리기</p>}
+        <h1 className="title">{enterprise ? '공유 전에 개인정보를 가려요' : '개인정보 가리기'}</h1>
         <p className="desc">
           <img src={lockIcon} width={15} height={15} alt="" />
           넣은 글과 파일은 이 브라우저 밖으로 나가지 않아요.
         </p>
+        {enterprise && <EnterpriseNotice />}
 
         <div className={`input-box ${pdf ? 'has-pdf' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+          {enterprise && <div className="enterprise-input-head">
+            <h2>내용 입력</h2>
+            <p>자동으로 찾은 항목은 모두 가려져요. 결과 화면에서 가려진 내용을 확인해 주세요.</p>
+            <div className="enterprise-input-tabs" role="group" aria-label="입력 방식">
+              <Button variant={pdf ? 'secondary' : 'primary'} aria-pressed={!pdf} onClick={() => setPdf(null)}>텍스트</Button>
+              <Button variant={pdf ? 'primary' : 'secondary'} aria-pressed={!!pdf} onClick={() => fileInput.current?.click()}>문서 첨부</Button>
+            </div>
+          </div>}
           {pdf && <div className="pdf-attachment">
             <div className="pdf-chip">
               <img src={pdfIcon} width={28} height={28} alt="" />
@@ -91,10 +104,10 @@ export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string)
             aria-label="개인정보를 찾을 글"
           />
           <div className="tool-row">
-            <button type="button" className="attach" onClick={() => fileInput.current?.click()}>
+            {enterprise ? <span className="enterprise-input-help">원문과 파일은 브라우저 밖으로 나가지 않아요.</span> : <button type="button" className="attach" onClick={() => fileInput.current?.click()}>
               <img src={clipIcon} width={18} height={18} alt="" />
               PDF 첨부
-            </button>
+            </button>}
             <input
               ref={fileInput}
               type="file"
