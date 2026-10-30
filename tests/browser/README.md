@@ -1,4 +1,8 @@
-# PDF 저장 연결 검증
+# 브라우저 검증
+
+실제 배포 서비스의 개인·직원·관리자 검증은 [통합 절차](integration-procedure.md)를 따른다. 실행 결과와 미검증 항목은 [42번 검증 결과](../../docs/integration-verification-42.md)에 기록한다. 아래 별도 PDF 검사 화면의 성공은 실제 서비스 통합 검증을 대신하지 않는다.
+
+## PDF 저장 연결 검증
 
 1. 저장소에서 `npm run dev`를 실행한다.
 2. 크롬에서 개발 서버의 `/tests/browser/pdf-export.html`을 연다.
