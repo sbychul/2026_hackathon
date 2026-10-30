@@ -1,0 +1,31 @@
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 40px;
+  border-bottom: 1px solid var(--line-default);
+}
+
+.service-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 22px;
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.mode-label {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+
+.mode-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--line-default);
+}

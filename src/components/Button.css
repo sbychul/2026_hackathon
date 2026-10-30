@@ -26,6 +26,14 @@
   opacity: 0.35;
 }
 
+.btn-secondary {
+  padding-inline: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-primary);
+}
+
 .btn-text {
   border-radius: 4px;
   background: none;
