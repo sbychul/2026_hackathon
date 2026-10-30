@@ -61,12 +61,16 @@ export async function exportMaskedPdf(
   for (let pageNumber = 1; pageNumber <= source.numPages; pageNumber++) {
     const page = await source.getPage(pageNumber)
     const base = page.getViewport({ scale: 1 })
-    const viewport = page.getViewport({ scale })
+    // 큰 페이지는 캔버스 한도(한 변 8192, 1,600만 픽셀) 안에 들도록 해당 페이지만 배율을 낮춘다.
+    // 올림으로 늘어나는 픽셀까지 고려해 한도보다 조금 작게 잡는다.
+    const pageScale = Math.min(scale, 8191 / base.width, 8191 / base.height,
+      Math.sqrt(15_980_000 / (base.width * base.height)))
+    const viewport = page.getViewport({ scale: pageScale })
     const width = Math.ceil(viewport.width)
     const height = Math.ceil(viewport.height)
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1
       || width > 8192 || height > 8192 || width * height > 16_000_000) {
-      throw new Error(`${pageNumber}쪽이 너무 큽니다. 저장 배율을 줄여 주세요.`)
+      throw new Error(`${pageNumber}쪽의 크기를 읽을 수 없습니다.`)
     }
     const pageMasks = masks.filter((region) => region.pageNumber === pageNumber)
     for (const region of pageMasks) {
@@ -89,10 +93,10 @@ export async function exportMaskedPdf(
       context.fillStyle = '#000000'
       for (const region of pageMasks) {
         // 소수점 반올림과 글자 가장자리 때문에 원문 픽셀이 남지 않도록 한 픽셀 여유를 둔다.
-        const left = Math.max(0, Math.floor(region.x * scale) - 1)
-        const top = Math.max(0, Math.floor(region.y * scale) - 1)
-        const right = Math.min(width, Math.ceil((region.x + region.width) * scale) + 1)
-        const bottom = Math.min(height, Math.ceil((region.y + region.height) * scale) + 1)
+        const left = Math.max(0, Math.floor(region.x * pageScale) - 1)
+        const top = Math.max(0, Math.floor(region.y * pageScale) - 1)
+        const right = Math.min(width, Math.ceil((region.x + region.width) * pageScale) + 1)
+        const bottom = Math.min(height, Math.ceil((region.y + region.height) * pageScale) + 1)
         context.fillRect(left, top, right - left, bottom - top)
       }
       context.restore()
@@ -101,9 +105,10 @@ export async function exportMaskedPdf(
       const outputPage = output.addPage([base.width, base.height])
       outputPage.drawImage(image, { x: 0, y: 0, width: base.width, height: base.height })
     } finally {
-      // 페이지마다 임시 캔버스를 해제하고, 호출자가 소유한 원본 문서는 유지한다.
+      // 페이지마다 임시 캔버스와 렌더링 자원을 해제하고, 호출자가 소유한 원본 문서는 유지한다.
       canvas.width = 0
       canvas.height = 0
+      page.cleanup()
     }
     options.onProgress?.(pageNumber, source.numPages)
   }

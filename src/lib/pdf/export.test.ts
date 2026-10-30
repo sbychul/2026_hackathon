@@ -6,18 +6,24 @@ import { downloadMaskedPdf, exportMaskedPdf, type PdfMaskRegion } from './export
 const region: PdfMaskRegion = { pageNumber: 1, x: 10.25, y: 20.25, width: 40, height: 12 }
 
 // 실제 PDF 저장을 검증하면서 브라우저 캔버스와 원본 페이지 렌더링만 대체한다.
-function fixture() {
+function fixture(firstPage = { width: 300, height: 400 }) {
   const fillRect = vi.fn()
-  const render = vi.fn(() => ({ promise: Promise.resolve() }))
+  const cleanup = vi.fn()
+  const rendered: Array<{ width: number; height: number }> = []
+  const render = vi.fn(({ canvas }: { canvas: { width: number; height: number } }) => {
+    rendered.push({ width: canvas.width, height: canvas.height })
+    return { promise: Promise.resolve() }
+  })
   const canvases: Array<{ width: number; height: number }> = []
   const source = {
     numPages: 2,
     getPage: vi.fn(async (number: number) => ({
       getViewport: ({ scale }: { scale: number }) => ({
-        width: (number === 1 ? 300 : 400) * scale,
-        height: (number === 1 ? 400 : 300) * scale,
+        width: (number === 1 ? firstPage.width : 400) * scale,
+        height: (number === 1 ? firstPage.height : 300) * scale,
       }),
       render,
+      cleanup,
     })),
   } as unknown as PDFDocumentProxy
   const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='), (char) => char.charCodeAt(0))
@@ -32,7 +38,7 @@ function fixture() {
       return canvas
     },
   })
-  return { source, fillRect, render, canvases }
+  return { source, fillRect, render, canvases, cleanup, rendered }
 }
 
 // 다음 검증에 브라우저 대체 객체가 남지 않게 복원한다.
@@ -53,6 +59,31 @@ describe('가린 PDF 저장', () => {
     expect(progress.mock.calls).toEqual([[1, 2], [2, 2]])
     expect(canvases.every((canvas) => canvas.width === 0 && canvas.height === 0)).toBe(true)
     expect(result.getForm().getFields()).toHaveLength(0)
+  })
+
+  it('페이지마다 렌더링 자원을 해제한다', async () => {
+    const { source, render, cleanup } = fixture()
+    await exportMaskedPdf(source, [region])
+    expect(cleanup).toHaveBeenCalledTimes(2)
+    render.mockImplementationOnce(() => ({ promise: Promise.reject(new Error('렌더링 실패')) }))
+    await expect(exportMaskedPdf(source, [region])).rejects.toThrow('렌더링 실패')
+    expect(cleanup).toHaveBeenCalledTimes(3)
+  })
+
+  it('큰 페이지는 해당 페이지의 배율만 낮춰 저장한다', async () => {
+    // A0 크기는 기본 배율 2에서 캔버스 한도를 넘는다.
+    const { source, fillRect, rendered } = fixture({ width: 2384, height: 3370 })
+    const blob = await exportMaskedPdf(source, [{ pageNumber: 1, x: 100, y: 100, width: 50, height: 20 }])
+    const result = await PDFDocument.load(await blob.arrayBuffer())
+    expect(result.getPage(0).getSize()).toEqual({ width: 2384, height: 3370 })
+    expect(rendered[0].width * rendered[0].height).toBeLessThanOrEqual(16_000_000)
+    expect(rendered[1]).toEqual({ width: 800, height: 600 })
+    // 낮춘 배율에 맞춰 가림 영역도 같은 비율로 칠한다.
+    const [left, , w] = fillRect.mock.calls[0]
+    const pageScale = rendered[0].width / 2384
+    expect(left).toBeLessThanOrEqual(100 * pageScale)
+    expect(left + w).toBeGreaterThanOrEqual(150 * pageScale)
+    expect(left + w).toBeLessThan(150 * 2)
   })
 
   it('선택 영역이 없어도 원본 대신 이미지 페이지로 저장한다', async () => {
