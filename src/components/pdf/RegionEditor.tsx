@@ -63,7 +63,7 @@ export default function RegionEditor({ src, page, pageNumber, rotation, zoom, en
   }
 
   return (
-    <svg className={`pdf-region-editor ${enabled ? 'is-editing' : ''}`} width={Math.min(704, size.width) * zoom} viewBox={`0 0 ${size.width} ${size.height}`}
+    <svg className={`pdf-region-editor ${enabled ? 'is-editing' : ''} ${zoom <= 1 ? 'is-fit' : ''}`} width={Math.min(704, size.width) * zoom} viewBox={`0 0 ${size.width} ${size.height}`}
       style={{ aspectRatio: `${size.width} / ${size.height}` }} role="img" aria-label={`${pageNumber}쪽 가린 결과${enabled ? ', 사각형을 드래그해 직접 가리기' : ''}`}
       onPointerDown={begin} onPointerMove={move} onPointerUp={(event) => finish(event, true)}
       onPointerCancel={(event) => finish(event, false)} onLostPointerCapture={(event) => finish(event, false)}

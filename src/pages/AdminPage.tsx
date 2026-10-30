@@ -36,6 +36,11 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     }
   }, [store])
 
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // 통계 화면으로 바뀌면 초점을 제목으로 옮겨 키보드·화면 읽기 사용자가 위치를 잃지 않게 한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
+
   useEffect(() => {
     if (state.status === 'error' || state.status === 'denied') statusHeading.current?.focus()
   }, [state.status])
@@ -44,7 +49,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     <main className="admin-page">
       <header className="admin-heading">
         <p className="admin-eyebrow">관리자 통계</p>
-        <h1><span className="admin-title-desktop">보안 교육이 필요한 지점을 살펴봐요</span><span className="admin-title-mobile">보안 교육 통계</span></h1>
+        <h1 ref={titleRef} tabIndex={-1}><span className="admin-title-desktop">보안 교육이 필요한 지점을 살펴봐요</span><span className="admin-title-mobile">보안 교육 통계</span></h1>
         <p>탐지된 내용은 볼 수 없어요. 이름과 건수로 교육 주제를 확인해 주세요.</p>
       </header>
       <div className="admin-toolbar">

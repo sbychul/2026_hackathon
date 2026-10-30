@@ -43,7 +43,8 @@ textarea {
 }
 
 /* 화면 전환 때 코드로 초점만 옮기는 제목에는 테두리를 그리지 않는다. */
-h1[tabindex='-1']:focus {
+h1[tabindex='-1']:focus,
+h2[tabindex='-1']:focus {
   outline: none;
 }
 

@@ -74,6 +74,8 @@
 .pdf-edit-pages { display: block; min-height: 240px; }
 .pdf-region-editor { display: block; max-width: none; margin: 0 auto; height: auto; background: var(--bg-surface); user-select: none; }
 .pdf-region-editor.is-editing { cursor: crosshair; touch-action: none; }
+/* 100% 이하 배율에서는 좁은 화면 폭에 맞춘다. 좌표는 화면 크기 기준으로 다시 계산돼 영향이 없다. */
+.pdf-region-editor.is-fit { max-width: 100%; }
 .pdf-auto-outline, .pdf-manual-outline { fill: none; stroke: var(--accent-default); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
 .pdf-manual-outline { stroke-dasharray: 6 4; stroke: #b87700; }
 .pdf-draft { fill: #0008; stroke: #b87700; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
