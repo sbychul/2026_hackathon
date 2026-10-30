@@ -10,6 +10,8 @@ new Function('exports', stripTypeScriptTypes(source).replace(/export /g, '') + '
 const core = new Set(['rrn','phone','email','card']);
 const detectorSource=fs.readFileSync(path.join(root,'src/masking/detect.ts'),'utf8');
 const projectDetect=new Function('RULES',stripTypeScriptTypes(detectorSource).replace(/^import .*$/gm,'').replace(/export /g,'')+'\nreturn detect;')(box.RULES);
+const maskerSource=fs.readFileSync(path.join(root,'src/masking/mask.ts'),'utf8');
+const projectMask=new Function(stripTypeScriptTypes(maskerSource).replace(/^import .*$/gm,'').replace(/export /g,'')+'\nreturn mask;')();
 
 // 프로젝트의 실제 탐지 모듈을 실행하고 정답 비교용 값과 위치를 구성한다.
 function detect(text) {
@@ -34,7 +36,10 @@ for(const c of cases){
  if(c.값)assert.deepEqual(matches.map(m=>m.값),c.값,c.설명);
 }
 const demo=detect(fs.readFileSync(path.join(sample,'텍스트/00_전체규칙_통합시연.txt'),'utf8'));
-assert.deepEqual(demo.map(m=>m.유형),['name','rrn','phone','email','card','address']);
+assert.deepEqual(demo.map(m=>m.유형),['name','rrn','phone','email','card','address','account']);
+const accountText='계좌번호: 가상은행 123-456-789012';
+const accountMatches=projectDetect(accountText);
+assert.equal(projectMask(accountText,accountMatches),'계좌번호: 가상은행 **************');
 const baseline=path.join(sample,'정답/글자판_6개규칙_관측값.json');
 // 기존 여섯 규칙의 기록을 유지하고 새 계좌번호 규칙은 독립 경계 사례로 검증한다.
 const legacySnapshots=snapshots.map(doc=>({...doc,전체탐지:doc.전체탐지.filter(match=>match.유형!=='account')}));

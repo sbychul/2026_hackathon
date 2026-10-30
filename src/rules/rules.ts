@@ -37,12 +37,15 @@ export function passesLuhn(value: string): boolean {
 }
 
 // 이메일 후보의 점 위치와 도메인 이름을 검사해 잘못된 형식을 거른다.
+const EMAIL_LOCAL_CHARACTERS = 'A-Za-z0-9!#$%&\'*+/=?^_`{|}~\\-'
+const EMAIL_LOCAL_PART = `[${EMAIL_LOCAL_CHARACTERS}]+(?:\\.[${EMAIL_LOCAL_CHARACTERS}]+)*`
+
 function isValidEmail(value: string): boolean {
   const parts = value.split('@')
   if (parts.length !== 2 || value.length > 254) return false
   const local = parts[0]!
   const domain = parts[1]!
-  if (local.length > 64 || !/^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/.test(local)) return false
+  if (local.length > 64 || !new RegExp(`^${EMAIL_LOCAL_PART}$`).test(local)) return false
   const labels = domain.split('.')
   return labels.length >= 2
     && labels.every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label))
@@ -96,7 +99,12 @@ export const RULES: Rule[] = [
     id: 'email',
     name: '이메일',
     // 비인용 아이디의 허용 기호를 경계에도 적용해 이메일 앞부분이 남지 않게 한다.
-    pattern: /(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~@-])[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}(?![A-Za-z0-9@]|\.[A-Za-z0-9.-])/g,
+    pattern: new RegExp(
+      `(?<![${EMAIL_LOCAL_CHARACTERS}.@()[\\],:"\\\\-])${EMAIL_LOCAL_PART}`
+        + '@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,63}'
+        + '(?![A-Za-z0-9@]|\\.[A-Za-z0-9.-])',
+      'g',
+    ),
     validate: isValidEmail,
   },
   {

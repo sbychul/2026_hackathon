@@ -111,6 +111,19 @@ describe('계좌번호 탐지와 오탐 방지', () => {
 
 describe('이메일 오탐 방지', () => {
   it.each([
+    ['bad()user@example.com', []],
+    ['bad,foo@example.com', []],
+    ['abc"user@example.com', []],
+  ])('잘못된 이메일의 뒷부분만 부분 탐지하지 않는다: %s', (text, emails) => {
+    expect(find('email', text)).toEqual(emails)
+    expect(mask(text, detect(text))).toBe(text)
+  })
+
+  it('허용 기호가 있는 이메일 여러 개를 각각 전체 탐지한다', () => {
+    const text = "o'connor@example.com user/name=tag@example.com"
+    expect(find('email', text)).toEqual(["o'connor@example.com", 'user/name=tag@example.com'])
+  })
+  it.each([
     "o'connor@example.com", "'sample'@example.com", 'user/name@example.com',
     'user=tag@example.com', 'user!#$%&*+/?^_`{|}~-name@example.com',
   ])('허용 기호가 있는 이메일도 앞부분을 남기지 않고 전부 가린다: %s', (email) => {
@@ -195,6 +208,10 @@ describe('휴대전화 오탐 방지', () => {
 })
 
 describe('이름 오탐 방지', () => {
+  it('다른 유니코드 문자에 붙은 이름 라벨은 탐지하지 않는다', () => {
+    expect(find('name', '名前이름: 홍길동')).toEqual([])
+  })
+
   it.each(['파일이름: 보고서', '성이름: 홍길동', '회사성명: 주식회사',
     '영문성함: 홍길동', 'file이름: 보고서', '_이름: 홍길동', '1성명: 홍길동',
     '이름: 미입력', '성명 미기재', '성함: 미작성', '이름: 없음'])(
