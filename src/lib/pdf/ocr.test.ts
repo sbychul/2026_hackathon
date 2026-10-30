@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { pageBox, detectionBoxes } from '../ocr/geometry'
 import { decodeText } from '../ocr/preprocess'
-import { phoneRegions } from '../ocr/phone-regions'
+import { privacyRegions } from '../ocr/privacy-regions'
 
 describe('스캔 문서의 전화번호 가림 영역', () => {
   it('반복 숫자 사이의 빈 토큰은 제거하되 전화번호의 반복 숫자는 유지한다', () => {
@@ -14,7 +14,7 @@ describe('스캔 문서의 전화번호 가림 영역', () => {
 
   it('실제 프로젝트 규칙으로 전화번호를 고르고 이미 가린 번호는 보존한다', () => {
     const box = { x: 200, y: 400, width: 300, height: 50 }
-    const result = phoneRegions([
+    const result = privacyRegions([
       { text: '전화: 010-1234-5678 / 010-2345-6789', confidence: 0.95, box },
       { text: '연락처 010-****-5678', confidence: 0.95, box: { ...box, y: 500 } },
       { text: '홍길동', confidence: 0.99, box: { ...box, y: 600 } },

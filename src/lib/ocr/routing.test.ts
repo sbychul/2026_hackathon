@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { scanPdfPhones } from '../pdf/ocr'
+import { scanPdfPrivacy } from '../pdf/ocr'
 import { hasPageImages, nativeTextLines, rotatedPageBox } from './pdf-page'
 import { OPS } from 'pdfjs-dist'
 import type { PDFPageProxy, TextContent } from 'pdfjs-dist/types/src/display/api'
@@ -37,7 +37,7 @@ afterEach(()=>vi.unstubAllGlobals())
 describe('이미지 페이지에만 모델 적용',()=>{
   it('텍스트 100쪽은 모델과 페이지 렌더링을 한 번도 호출하지 않는다',async()=>{
     const document=source(100)
-    const result=await scanPdfPhones(new Blob(['시험 문서']))
+    const result=await scanPdfPrivacy(new Blob(['시험 문서']))
     expect(result).toMatchObject({count:100,ocrPages:0,directPages:100})
     expect(fake.recognize).not.toHaveBeenCalled()
     expect(document.render).not.toHaveBeenCalled()
@@ -46,7 +46,7 @@ describe('이미지 페이지에만 모델 적용',()=>{
   })
   it('텍스트 29쪽과 이미지 1쪽이면 한 쪽만 모델로 읽는다',async()=>{
     const document=source(30,[16])
-    const result=await scanPdfPhones(new Blob(['시험 문서']))
+    const result=await scanPdfPrivacy(new Blob(['시험 문서']))
     expect(result).toMatchObject({count:30,ocrPages:1,directPages:29})
     expect(fake.recognize).toHaveBeenCalledTimes(1)
     expect(document.render).toHaveBeenCalledTimes(1)
@@ -55,12 +55,12 @@ describe('이미지 페이지에만 모델 적용',()=>{
   it('이미지 페이지의 인식 실패를 건너뛴 성공 문서로 반환하지 않는다',async()=>{
     const document=source(3,[2])
     fake.recognize.mockRejectedValueOnce(new Error('시험 실패'))
-    await expect(scanPdfPhones(new Blob(['시험 문서']))).rejects.toThrow('시험 실패')
+    await expect(scanPdfPrivacy(new Blob(['시험 문서']))).rejects.toThrow('시험 실패')
     expect(document.destroy).toHaveBeenCalledOnce()
   })
   it('이미지가 많은 문서도 미리보기는 두 장만 보관한다',async()=>{
     source(5,[1,2,3,4,5])
-    const result=await scanPdfPhones(new Blob(['시험 문서']))
+    const result=await scanPdfPrivacy(new Blob(['시험 문서']))
     expect(result.pages.filter(page=>page.preview)).toHaveLength(2)
     expect(fake.recognize).toHaveBeenCalledTimes(5)
   })

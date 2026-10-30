@@ -1,7 +1,7 @@
 import { getDocument, GlobalWorkerOptions, OPS, type PDFDocumentProxy } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { BrowserOcr } from '../ocr/client'
-import { phoneRegions } from '../ocr/phone-regions'
+import { privacyRegions, type RuleCounts } from '../ocr/privacy-regions'
 import type { OcrLine, OcrProgress } from '../ocr/types'
 import type { PdfMaskRegion } from './export'
 import { hasPageImages, nativeTextLines, rotatedPageBox } from '../ocr/pdf-page'
@@ -12,6 +12,7 @@ export interface ScannedPdfResult {
   source: PDFDocumentProxy
   regions: PdfMaskRegion[]
   count: number
+  counts: RuleCounts
   ocrPages: number
   directPages: number
   pages: Array<{ pageNumber: number; imageWidth: number; imageHeight: number; lines: OcrLine[]; preview?: string; method: 'ocr' | 'text'; elapsedMs: number; warning?: string }>
@@ -26,8 +27,8 @@ function checkAbort(signal?: AbortSignal): void {
   if (signal?.aborted) throw new Error('작업을 취소했습니다.')
 }
 
-// 스캔 페이지를 브라우저 안에서 읽고 전화번호 영역과 가린 미리보기를 반환한다.
-export async function scanPdfPhones(file: Blob, options: ScanOptions = {}): Promise<ScannedPdfResult> {
+// 스캔 페이지를 브라우저 안에서 읽고 개인정보 영역과 가린 미리보기를 반환한다.
+export async function scanPdfPrivacy(file: Blob, options: ScanOptions = {}): Promise<ScannedPdfResult> {
   if (file.size > 30 * 1024 * 1024) throw new Error('첫 시연은 30메가바이트 이하 문서만 지원합니다.')
   checkAbort(options.signal)
   const data = new Uint8Array(await file.arrayBuffer())
@@ -43,6 +44,9 @@ export async function scanPdfPhones(file: Blob, options: ScanOptions = {}): Prom
     checkAbort(options.signal)
     if (source.numPages > 100) throw new Error('현재 검증 화면은 100쪽 이하 문서만 지원합니다.')
     const regions: PdfMaskRegion[] = [], pages: ScannedPdfResult['pages'] = []
+    const counts: RuleCounts = {}
+    // 각 페이지의 규칙별 건수를 문서 합계에 더한다.
+    const addCounts = (pageCounts: RuleCounts) => { for (const rule of Object.keys(pageCounts) as Array<keyof RuleCounts>) counts[rule]=(counts[rule]??0)+(pageCounts[rule]??0) }
     let count = 0, ocrPages = 0, directPages = 0, previews = 0
     for (let pageNumber = 1; pageNumber <= source.numPages; pageNumber++) {
       checkAbort(options.signal)
@@ -57,8 +61,8 @@ export async function scanPdfPhones(file: Blob, options: ScanOptions = {}): Prom
           options.onProgress?.(pageNumber,source.numPages,{stage:'text',completed:0,total:1})
           const lines = nativeTextLines(await page.getTextContent(),base)
           checkAbort(options.signal)
-          const detected = phoneRegions(lines,pageNumber,base.width,base.height,base.width,base.height)
-          regions.push(...detected.regions); count += detected.count; directPages++
+          const detected = privacyRegions(lines,pageNumber,base.width,base.height,base.width,base.height)
+          regions.push(...detected.regions); count += detected.count; addCounts(detected.counts); directPages++
           pages.push({pageNumber,imageWidth:base.width,imageHeight:base.height,lines,method:'text',elapsedMs:performance.now()-started,
             warning: !lines.length && operators.fnArray.length ? '읽을 수 있는 글자가 없습니다. 도형으로 그린 글자 등이 있는지 확인해 주세요.' : undefined})
         } finally { page.cleanup() }
@@ -81,10 +85,10 @@ export async function scanPdfPhones(file: Blob, options: ScanOptions = {}): Prom
         checkAbort(options.signal)
         const bitmap = await createImageBitmap(canvas)
         const lines = await ocr.recognize(bitmap, options.signal, progress => options.onProgress?.(pageNumber, source!.numPages, progress))
-        const detected = phoneRegions(lines, pageNumber, canvas.width, canvas.height, renderBase.width, renderBase.height)
+        const detected = privacyRegions(lines, pageNumber, canvas.width, canvas.height, renderBase.width, renderBase.height)
         const outputRegions = base.rotation === renderBase.rotation ? detected.regions
           : detected.regions.map(region=>({pageNumber,...rotatedPageBox(region,renderBase,base)}))
-        regions.push(...outputRegions); count += detected.count
+        regions.push(...outputRegions); count += detected.count; addCounts(detected.counts)
         context.fillStyle = '#000000'
         for (const region of detected.regions) {
           const left = Math.max(0, Math.floor(region.x / renderBase.width * canvas.width))
@@ -101,7 +105,7 @@ export async function scanPdfPhones(file: Blob, options: ScanOptions = {}): Prom
       } finally { canvas.width = 0; canvas.height = 0; page.cleanup() }
     }
     checkAbort(options.signal)
-    return { source, regions, count, pages, ocrPages, directPages }
+    return { source, regions, count, counts, pages, ocrPages, directPages }
   } catch (error) {
     await task.destroy()
     throw error
