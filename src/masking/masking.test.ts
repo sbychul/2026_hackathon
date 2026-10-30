@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isValidBirthDate, passesLuhn } from '../rules/rules'
-import { detect } from './detect'
+import { countByRule, detect, type Match } from './detect'
 import { mask } from './mask'
 
 // 테스트 값은 전부 가짜 정보다.
@@ -79,5 +79,35 @@ describe('mask', () => {
 
   it('구간이 없으면 원문 그대로 반환한다', () => {
     expect(mask('안녕', [])).toBe('안녕')
+  })
+})
+
+describe('룰별 탐지 건수 집계', () => {
+  it('빈 목록이면 여섯 룰 모두 0을 반환한다', () => {
+    expect(countByRule([])).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0 })
+  })
+
+  it('실제 탐지 결과에서 같은 룰의 반복을 포함해 여섯 룰을 집계한다', () => {
+    const text = '주민 900101-1234567, 전화 010-0000-0001, 010-0000-0002, 메일 demo@example.org, '
+      + '카드 4111-1111-1111-1111, 이름: 가상인, 주소 서울특별시 강남구 테헤란로 123'
+    expect(countByRule(detect(text))).toEqual({ rrn: 1, phone: 2, email: 1, card: 1, name: 1, address: 1 })
+  })
+
+  it('개인 모드에서 선택한 항목만 전달하면 해당 항목만 집계한다', () => {
+    const matches = detect('전화 010-0000-0001, 010-0000-0002, 메일 demo@example.org')
+    const selected = matches.filter((match) => match.ruleId === 'phone').slice(0, 1)
+    expect(countByRule(selected)).toEqual({ rrn: 0, phone: 1, email: 0, card: 0, name: 0, address: 0 })
+  })
+
+  it('입력 순서와 구간을 바꾸지 않고 호출마다 독립적인 결과를 반환한다', () => {
+    const matches: readonly Match[] = Object.freeze([
+      Object.freeze({ ruleId: 'email' as const, start: 20, end: 36 }),
+      Object.freeze({ ruleId: 'phone' as const, start: 0, end: 13 }),
+    ])
+    const before = structuredClone(matches)
+    const first = countByRule(matches)
+    first.email = 99
+    expect(countByRule(matches)).toEqual({ rrn: 0, phone: 1, email: 1, card: 0, name: 0, address: 0 })
+    expect(matches).toEqual(before)
   })
 })
