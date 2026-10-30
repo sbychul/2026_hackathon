@@ -1,0 +1,37 @@
+/* 디자인 토큰. 피그마 변수 이름을 그대로 따른다. */
+:root {
+  --bg-page: #f3f3f1;
+  --bg-surface: #fff;
+  --line-default: #d9d9d4;
+  --text-primary: #111;
+  --text-secondary: #55554f;
+  --text-tertiary: #8a8a84;
+  --accent-default: #0f7b3f;
+  --accent-on: #fff;
+
+  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-page);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-default);
+  outline-offset: 2px;
+}
