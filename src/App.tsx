@@ -1,6 +1,7 @@
 import { useState, type AnimationEvent } from 'react'
 import TopBar from './components/TopBar'
 import Spinner from './components/Spinner'
+import Button from './components/Button'
 import MainPage from './pages/MainPage'
 import ResultPage from './pages/ResultPage'
 import PdfResultPage from './pages/PdfResultPage'
@@ -74,6 +75,7 @@ function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const [wordsFailed, setWordsFailed] = useState(false)
 
   // 찾을 글을 받고 입력 화면을 내보낸다.
   const find = (value: string) => {
@@ -97,17 +99,35 @@ function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
       setView('input')
       return
     }
+    await showResult()
+  }
+
+  // 최신 기업 공통 단어를 탐지 룰에 넣은 뒤 결과를 보여준다. 기업 모드에서 조회에 실패하면 결과를 보여주지 않는다.
+  const showResult = async () => {
+    setWordsFailed(false)
     setView('loading')
-    // 결과를 만들기 전에 최신 기업 공통 단어를 탐지 룰에 넣는다.
-    // ponytail: 조회 실패 시 직전에 받은 목록을 그대로 쓴다. 실패 안내가 필요하면 결과 화면에 상태를 넘긴다.
-    await applyCustomWords(mode === 'company').catch(() => {})
+    try {
+      await applyCustomWords(mode === 'company')
+    } catch {
+      setWordsFailed(true)
+      return
+    }
     setView('result')
   }
 
   return (
       <div key={view} className={`stage ${leaving ? 'leave' : 'enter'}`} onAnimationEnd={handleAnimationEnd}>
         {view === 'input' && <MainPage mode={mode} onFind={find} onFindPdf={findPdf} />}
-        {view === 'loading' && <Spinner />}
+        {view === 'loading' && (wordsFailed
+          ? <section className="words-error" role="alert">
+            <h2>기업 공통 단어를 불러오지 못했어요</h2>
+            <p>공통 단어를 가리지 않은 결과는 보여드리지 않아요. 연결을 확인하고 다시 시도해 주세요.</p>
+            <div className="words-error-actions">
+              <Button onClick={() => void showResult()}>다시 시도</Button>
+              <Button variant="secondary" onClick={() => { setWordsFailed(false); setView('input') }}>처음으로</Button>
+            </div>
+          </section>
+          : <Spinner />)}
         {view === 'result' && (pdf
           ? <PdfResultPage mode={mode} file={pdf} onRestart={() => setLeaving(true)} />
           : <ResultPage mode={mode} text={text} onRestart={() => setLeaving(true)} />)}

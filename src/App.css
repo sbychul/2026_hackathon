@@ -40,3 +40,17 @@
     animation-duration: 1ms;
   }
 }
+
+.words-error {
+  margin: 64px auto;
+  max-width: 560px;
+  padding: 24px;
+  display: grid;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-default);
+}
+
+.words-error h2, .words-error p { margin: 0; }
+
+.words-error-actions { display: flex; flex-wrap: wrap; gap: 8px; }
