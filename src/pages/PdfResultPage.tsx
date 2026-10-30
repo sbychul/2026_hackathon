@@ -9,6 +9,7 @@ import { readServicePdf, type ServicePdf } from '../lib/pdf/service'
 import RegionCoordinates from '../components/pdf/RegionCoordinates'
 import { type ManualRegion } from '../lib/pdf/manualRegions'
 import type { PdfMaskRegion } from '../lib/pdf/export'
+import { useMaskingCompletion } from '../hooks/useMaskingCompletion'
 import chevronDown from '../assets/pdf-chevron-down.svg'
 import chevronRight from '../assets/pdf-chevron-right.svg'
 import './ResultPage.css'
@@ -18,7 +19,7 @@ interface PdfResultProps { file: File; onRestart: () => void; mode?: MaskingMode
 
 // 파일을 바꾸면 이전 문서의 선택과 다운로드 결과를 함께 폐기한다.
 export default function PdfResultPage(props: PdfResultProps) {
-  const identity = useMemo(() => ({ file: props.file, key: crypto.randomUUID() }), [props.file])
+  const identity = useMemo(() => ({ file: props.file, mode: props.mode, key: crypto.randomUUID() }), [props.file, props.mode])
   return <PdfResultDocument key={identity.key} {...props} />
 }
 
@@ -28,6 +29,7 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   const [progress, setProgress] = useState('파일의 글자와 위치를 확인하고 있어요…')
   const processing = useRef<AbortController | null>(null)
   const enterprise = mode === 'company'
+  const completion = useMaskingCompletion(enterprise, 'pdf')
   const [manual, setManual] = useState<ManualRegion[]>([])
   // 직접 영역 추가·취소 결과를 화면 읽기 프로그램에 알린다.
   const [notice, setNotice] = useState('')
@@ -116,7 +118,7 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
 
   // 확인한 미리보기의 파일을 그대로 내려받는다.
   const download = () => {
-    if (!ready || !output) return
+    if (!ready || !output || !completion.canExport) return
     const url = URL.createObjectURL(output.blob)
     const link = window.document.createElement('a')
     link.href = url
@@ -134,11 +136,13 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
           <p className="result-desc">{enterprise ? '기업 자동 탐지는 해제할 수 없어요. ' : '선택한 자동 탐지와 직접 영역을 함께 가려요. '}페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
         </div>
         <div className="result-actions">
-          <Button variant="secondary" onClick={onRestart}>처음부터 다시</Button>
-          <Button disabled={!ready} onClick={download}>가린 PDF 내려받기</Button>
+          <Button variant="secondary" disabled={completion.status === 'saving'} onClick={onRestart}>처음부터 다시</Button>
+          {enterprise && <Button disabled={!ready || completion.status !== 'ready'} onClick={() => { if (ready) void completion.complete(matches) }}>{completion.buttonLabel}</Button>}
+          <Button disabled={!ready || !completion.canExport} onClick={download}>가린 PDF 내려받기</Button>
         </div>
       </div>
       {enterprise && <EnterpriseNotice />}
+      {enterprise && <p className="result-desc" role={completion.status === 'failed' ? 'alert' : 'status'}>{completion.message}</p>}
       {error ? <p role="alert">{error}</p> : !document ? <div>
         <p role="status">{progress}</p>
         <Button variant="secondary" onClick={() => processing.current?.abort()}>처리 취소</Button>
