@@ -1,0 +1,8 @@
+# 로컬 실행 상태
+.branches
+.temp
+
+# 환경변수와 암호화 키
+.env.keys
+.env.local
+.env.*.local

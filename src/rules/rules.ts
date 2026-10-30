@@ -1,6 +1,6 @@
 // 탐지 룰 정의. id는 Supabase `rules` 테이블의 룰 이름과 같아야 한다.
 
-export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address'
+export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address' | 'account'
 
 export interface Rule {
   id: RuleId
@@ -49,6 +49,12 @@ function isValidEmail(value: string): boolean {
     && /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]!)
 }
 
+// 하이픈을 제외한 계좌번호의 숫자가 열 자리부터 열네 자리인지 검사한다.
+function isValidAccount(value: string): boolean {
+  const length = value.replace(/-/g, '').length
+  return length >= 10 && length <= 14
+}
+
 // 주소 정규식 조각: 시/도 + 시/군/구(0~2개, 세종은 없음) + 읍/면/동(선택) + 도로명 또는 지번 + 동/호/층(선택)
 const SIDO =
   '(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청[남북]|전라[남북]|경상[남북])' +
@@ -59,6 +65,14 @@ const ROAD = '\\s+[가-힣0-9]+(?:로|길)(?:\\s*\\d+번?길)?\\s*\\d+(?:-\\d+)?
 const JIBUN = '\\s+[가-힣0-9]+(?:동|리)\\s*\\d+(?:-\\d+)?(?:번지)?'
 const DETAIL = '(?:[\\s,]*\\d+(?:동|호|층))*'
 const ADDRESS = `${SIDO}${SIGUNGU}${EUPMYEON}(?:${ROAD}|${JIBUN})${DETAIL}`
+
+// 라벨과 은행 이름, 같은 목록의 앞선 번호는 탐지 구간에서 제외한다.
+const ACCOUNT_LABEL = '(?:계좌\\s*번호|계좌)(?:은|는)?'
+const ACCOUNT_SEPARATOR = '(?:\\s*[:：-]\\s*|\\s+|\\s*\\([가-힣A-Za-z ]+\\)\\s*[:：-]?\\s*)'
+const ACCOUNT_BANK = '(?:[가-힣A-Za-z]+\\s+){0,3}'
+const ACCOUNT_NUMBER = '[0-9]+(?:-[0-9]+)*'
+const ACCOUNT_LIST = `(?:${ACCOUNT_NUMBER}\\s*(?:,\\s*|및\\s+)${ACCOUNT_BANK})*`
+const ACCOUNT = `(?<=${ACCOUNT_LABEL}${ACCOUNT_SEPARATOR}${ACCOUNT_BANK}${ACCOUNT_LIST})${ACCOUNT_NUMBER}(?![0-9-])`
 
 export const RULES: Rule[] = [
   {
@@ -97,5 +111,12 @@ export const RULES: Rule[] = [
     id: 'address',
     name: '주소',
     pattern: new RegExp(`(?<![가-힣])${ADDRESS}`, 'g'),
+  },
+  {
+    id: 'account',
+    name: '계좌번호',
+    // 확장된 라벨과 쉼표·및으로 이어지는 목록에서도 번호만 검사한다.
+    pattern: new RegExp(ACCOUNT, 'g'),
+    validate: isValidAccount,
   },
 ]
