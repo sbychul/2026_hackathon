@@ -8,6 +8,11 @@ function line(text:string,x:number,y:number,width=180):OcrLine {
 }
 
 describe('기본 브랜치 공통 규칙 전체 적용',()=>{
+  it('선택할 항목별 값과 가림 영역을 유지해 서로 다른 항목을 구분한다', () => {
+    const result = privacyRegions([line('010-1234-5678', 20, 20), line('person@example.com', 20, 60)], 1, 800, 1000, 800, 1000)
+    expect(result.matches.map(match => [match.ruleId, match.value, match.regions[0].y]))
+      .toEqual([['phone', '010-1234-5678', 16], ['email', 'person@example.com', 56]])
+  })
   it.each([
     ['010-12','34-5678'],
     ['010-1','23','4-5678'],
