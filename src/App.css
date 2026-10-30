@@ -1,0 +1,42 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.stage.enter {
+  animation: fade-up-in 0.3s ease-out;
+}
+
+.stage.leave {
+  animation: fade-up-out 0.25s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes fade-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+@keyframes fade-up-out {
+  to {
+    opacity: 0;
+    transform: translateY(-24px);
+  }
+}
+
+/* 움직임 줄이기 설정이면 바로 바꾼다. 0으로 두면 animationend가 안 와서 아주 짧게 남긴다. */
+@media (prefers-reduced-motion: reduce) {
+  .stage.enter,
+  .stage.leave {
+    animation-duration: 1ms;
+  }
+}

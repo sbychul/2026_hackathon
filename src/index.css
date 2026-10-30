@@ -2,12 +2,17 @@
 :root {
   --bg-page: #f3f3f1;
   --bg-surface: #fff;
+  --bg-sunken: #ecece9;
   --line-default: #d9d9d4;
+  --line-strong: #111;
   --text-primary: #111;
   --text-secondary: #55554f;
   --text-tertiary: #8a8a84;
   --accent-default: #0f7b3f;
   --accent-on: #fff;
+  --accent-soft: #e3f0e7;
+  --mask-bg: #111;
+  --mask-fg: #fff;
 
   --font-sans: 'Noto Sans KR', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
