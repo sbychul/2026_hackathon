@@ -66,16 +66,16 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   const regions = useMemo(() => [...automatic, ...manual], [automatic, manual])
   const ready = !!document && document.file === file && output?.bytes === document.bytes && output.regions === regions && !editing
 
-  // 직접 영역은 룰별 탐지 결과와 분리해 저장에만 합친다.
+  // 직접 영역은 룰별 탐지 결과와 분리해 저장에만 합친다. 안내에 개수를 넣어 연속 추가도 다시 읽히게 한다.
   const addManual = useCallback((region: ManualRegion) => {
     setManual((previous) => [...previous, region])
-    setNotice(`${region.pageNumber}쪽에 직접 영역을 추가했어요.`)
-  }, [])
+    setNotice(`${region.pageNumber}쪽에 직접 영역을 추가했어요. 모두 ${manual.length + 1}개`)
+  }, [manual.length])
 
   // 직접 영역을 취소하고, 사라진 취소 버튼 대신 목록 제목으로 초점을 옮긴다.
   const cancelManual = (id: string) => {
     setManual((previous) => previous.filter((item) => item.id !== id))
-    setNotice('직접 영역을 취소했어요.')
+    setNotice(`직접 영역을 취소했어요. 남은 영역 ${manual.length - 1}개`)
     manualHeading.current?.focus()
   }
   const order = [...RULE_ORDER, ...RULES.map((rule) => rule.id).filter((id) => !RULE_ORDER.includes(id))]
