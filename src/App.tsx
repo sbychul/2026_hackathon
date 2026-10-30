@@ -4,12 +4,67 @@ import Spinner from './components/Spinner'
 import MainPage from './pages/MainPage'
 import ResultPage from './pages/ResultPage'
 import PdfResultPage from './pages/PdfResultPage'
+import LoginPage from './pages/LoginPage'
+import Button from './components/Button'
+import { useSession } from './auth/useSession'
 import './App.css'
 
 type View = 'input' | 'loading' | 'result'
 
-// 앱 최상위 컴포넌트. 화면이 위로 사라졌다가 다음 화면이 위로 들어오게 전환한다.
+// 사용자 역할을 확인하고 로그인·개인 사용·관리자 진입을 연결한다.
 export default function App() {
+  const auth = useSession()
+  const [personal, setPersonal] = useState(false)
+  const [dashboard, setDashboard] = useState(false)
+  const user = auth.user
+
+  // 로그인에 성공하면 기업 입력 화면으로 이동한다.
+  async function signIn(input: Parameters<typeof auth.signIn>[0]) {
+    const success = await auth.signIn(input)
+    if (success) { setPersonal(false); setDashboard(false) }
+    return success
+  }
+
+  // 로그아웃에 성공하면 로그인 화면으로 돌아간다.
+  async function signOut() {
+    if (await auth.signOut()) { setPersonal(false); setDashboard(false) }
+  }
+
+  // 프로필 조회에 실패한 세션도 정리해 개인 사용에 기업 로그인이 남지 않게 한다.
+  async function enterPersonal() {
+    if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      if (!await auth.signOut()) return
+    }
+    auth.clearError()
+    setPersonal(true)
+    setDashboard(false)
+  }
+
+  // 서버 프로필이 관리자인 경우에만 통계 진입을 허용한다.
+  async function openDashboard() {
+    await auth.refresh()
+    setDashboard(true)
+  }
+
+  const showLogin = !user && !personal
+  return (
+    <div className="app">
+      <TopBar user={user} pending={auth.pending} onLogin={() => setPersonal(false)} onLogout={() => void signOut()} onDashboard={() => void openDashboard()} onMasking={() => setDashboard(false)} />
+      {showLogin ? <LoginPage pending={auth.pending} error={auth.error} onLogin={signIn} onPersonal={() => void enterPersonal()} /> : <>
+        {auth.error && <p role="alert">{auth.error}</p>}
+        {auth.pending && <p role="status">로그인 상태를 확인하고 있어요…</p>}
+        <div hidden={auth.pending} style={auth.pending ? undefined : { display: 'flex', flexDirection: 'column', flex: 1 }}>
+          {dashboard && user?.role === 'admin'
+            ? <main className="login-page"><h1>관리자 통계</h1><p>통계 화면은 준비 중이에요.</p><Button onClick={() => setDashboard(false)}>가리기로 돌아가기</Button></main>
+            : <MaskingWorkspace key={`${auth.revision}-${personal}`} />}
+        </div>
+      </>}
+    </div>
+  )
+}
+
+// 기존 개인 모드의 입력·결과 전환을 유지하고 사용자가 바뀌면 원문을 초기화한다.
+function MaskingWorkspace() {
   const [view, setView] = useState<View>('input')
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
@@ -44,8 +99,6 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <TopBar />
       <div key={view} className={`stage ${leaving ? 'leave' : 'enter'}`} onAnimationEnd={handleAnimationEnd}>
         {view === 'input' && <MainPage onFind={find} onFindPdf={findPdf} />}
         {view === 'loading' && <Spinner />}
@@ -53,6 +106,5 @@ export default function App() {
           ? <PdfResultPage file={pdf} onRestart={() => setLeaving(true)} />
           : <ResultPage text={text} onRestart={() => setLeaving(true)} />)}
       </div>
-    </div>
   )
 }
