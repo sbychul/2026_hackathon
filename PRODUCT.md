@@ -33,7 +33,7 @@ PDF나 텍스트 속 개인정보(주민등록번호, 전화번호, 이메일, �
 ## Capabilities and Constraints
 
 - 상세 명세는 `docs/spec.md`, 개발 규칙은 `docs/development.md`와 `AGENTS.md`를 따른다.
-- 탐지 룰 6개는 코드에 고정(`src/rules/rules.ts`). 룰 id: `rrn`, `phone`, `email`, `card`, `name`, `address`. 이름은 라벨("이름", "성명", "성함") 뒤만, 주소는 시/도로 시작하는 표준 형식만 잡는다.
+- 탐지 룰 7개는 코드에 고정(`src/rules/rules.ts`). 룰 id: `rrn`, `phone`, `email`, `card`, `name`, `address`, `account`. 이름은 라벨("이름", "성명", "성함") 뒤만, 계좌번호는 라벨("계좌번호", "계좌") 뒤만, 주소는 시/도로 시작하는 표준 형식만 잡는다.
 - 기업 모드: 체크박스 없음, 탐지 항목 전부 강제 마스킹. 개인 모드: 항목별·룰 종류별 선택.
 - 텍스트가 들어 있는 PDF만 지원. 스캔본 미지원 안내 문구를 화면에 보여준다.
 - 서버는 Supabase만 사용(로그인, DB). 화면 문구·주석은 한글.

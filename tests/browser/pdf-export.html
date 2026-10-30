@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><title>PDF 마스킹 연결 검증</title>
+<style>body{font:17px system-ui;max-width:1100px;margin:32px auto;padding:0 20px;background:#f3f5f8;color:#172237}button,input{font:inherit;margin:8px;padding:10px}button{background:#174e94;color:white;border:0;border-radius:6px}section{background:white;padding:20px;margin:16px 0;border-radius:12px}canvas{max-width:42%;height:auto;border:1px solid #ccc;margin:12px}pre{white-space:pre-wrap}label{display:block}</style>
+<h1>PDF 마스킹 연결 검증</h1>
+<p>문서는 이 브라우저에서 처리합니다. 샘플은 전부 가짜 정보입니다.</p>
+<p>기존 탐지 함수와 저장 모듈을 연결합니다. 4번 좌표 추출은 아직 없으므로 이 샘플의 고정 좌표만 사용합니다. 일반 문서 자동 마스킹 검증은 아닙니다.</p>
+<section><button id="sample">샘플 문서 내려받기</button><label>원본 샘플 PDF 열기 <input id="source" type="file" accept="application/pdf"></label><button id="download" disabled>가린 문서 내려받기</button><button id="invalid" disabled>잘못된 좌표 차단 검사</button></section>
+<section><label>내려받은 결과 PDF 다시 열기 <input id="output" type="file" accept="application/pdf"></label><pre id="status" role="status">샘플을 내려받아 원본 입력에 선택하세요.</pre></section>
+<section><h2>원본 미리보기</h2><div id="original"></div><h2>다운로드 결과 미리보기</h2><div id="result"></div></section>
+<script type="module" src="./pdf-export.ts"></script></html>
