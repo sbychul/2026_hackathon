@@ -63,3 +63,18 @@
   padding: 40px 24px;
   color: var(--text-secondary);
 }
+.pdf-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+}
+.pdf-editor-help { padding: 0 24px; font-size: 13px; color: var(--text-secondary); }
+.pdf-edit-pages { display: block; min-height: 240px; }
+.pdf-region-editor { display: block; max-width: none; margin: 0 auto; height: auto; background: var(--bg-surface); user-select: none; }
+.pdf-region-editor.is-editing { cursor: crosshair; touch-action: none; }
+.pdf-auto-outline, .pdf-manual-outline { fill: none; stroke: var(--accent-default); stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pdf-manual-outline { stroke-dasharray: 6 4; stroke: #b87700; }
+.pdf-draft { fill: #0008; stroke: #b87700; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+.pdf-region-editor:focus-visible { outline: 3px solid var(--accent-default); outline-offset: 3px; }
