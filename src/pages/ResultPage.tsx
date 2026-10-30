@@ -3,7 +3,7 @@ import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
 import { detect, type Match } from '../masking/detect'
-import { mask, MASK_CHAR } from '../masking/mask'
+import { mask } from '../masking/mask'
 import type { RuleId } from '../rules/rules'
 import chevronDown from '../assets/chevron-down.svg'
 import chevronRight from '../assets/chevron-right.svg'
@@ -42,6 +42,8 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
   const [copied, setCopied] = useState(false)
 
   const selected = matches.filter((_, i) => !off.has(i))
+  // 화면과 복사가 같은 결과를 쓰도록 mask() 결과 하나만 만든다. mask()는 글자 수를 바꾸지 않는다.
+  const masked = mask(text, selected)
   const groups = RULE_ORDER.map((id) => ({
     id,
     items: matches.map((m, i) => ({ m, i })).filter(({ m }) => m.ruleId === id),
@@ -64,7 +66,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
 
   // 가린 결과를 클립보드에 넣고 잠깐 버튼 글자를 바꾼다.
   const copyResult = async () => {
-    await navigator.clipboard.writeText(mask(text, selected))
+    await navigator.clipboard.writeText(masked)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -178,7 +180,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
                   </span>
                 ) : (
                   <span key={k} className="masked mono">
-                    {MASK_CHAR.repeat(s.text.length)}
+                    {masked.slice(s.match.start, s.match.end)}
                   </span>
                 ),
               )}
