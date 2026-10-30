@@ -1,6 +1,6 @@
 // 탐지 룰 정의. id는 Supabase `rules` 테이블의 룰 이름과 같아야 한다.
 
-export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address'
+export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address' | 'account'
 
 export interface Rule {
   id: RuleId
@@ -47,6 +47,12 @@ function isValidEmail(value: string): boolean {
   return labels.length >= 2
     && labels.every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label))
     && /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]!)
+}
+
+// 하이픈을 제외한 계좌번호의 숫자가 열 자리부터 열네 자리인지 검사한다.
+function isValidAccount(value: string): boolean {
+  const length = value.replace(/-/g, '').length
+  return length >= 10 && length <= 14
 }
 
 // 주소 정규식 조각: 시/도 + 시/군/구(0~2개, 세종은 없음) + 읍/면/동(선택) + 도로명 또는 지번 + 동/호/층(선택)
@@ -97,5 +103,12 @@ export const RULES: Rule[] = [
     id: 'address',
     name: '주소',
     pattern: new RegExp(`(?<![가-힣])${ADDRESS}`, 'g'),
+  },
+  {
+    id: 'account',
+    name: '계좌번호',
+    // 라벨과 선택적인 은행 이름은 남기고 숫자와 하이픈 묶음 전체만 검사한다.
+    pattern: /(?<=(?:계좌번호|계좌)\s*(?:[:：]\s*|\s)(?:[가-힣A-Za-z]+\s+)?)[0-9]+(?:-[0-9]+)*(?![0-9-])/g,
+    validate: isValidAccount,
   },
 ]

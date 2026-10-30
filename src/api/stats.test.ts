@@ -51,6 +51,14 @@ beforeEach(() => {
 })
 
 describe('관리자 통계', () => {
+  it('계좌번호 기록을 사용자별 건수와 전체 합계에 포함한다', async () => {
+    fake.tables.detections = [{ id: '1', user_id: 'a', rule_id: 'account', count: 2 }]
+    const stats = await getAdminStats()
+    expect(stats.userRuleCounts[0].counts.account).toBe(2)
+    expect(stats.ranking[0].total).toBe(2)
+    expect(stats.ruleTotals.find((rule) => rule.ruleId === 'account')?.count).toBe(2)
+  })
+
   it('여러 페이지 조회 중 앞쪽에 기록이 추가되어도 중복 집계하지 않는다', async () => {
     let added = false
     fake.onPage = (table) => {
@@ -77,8 +85,8 @@ describe('가짜 통계', () => {
       ['demo-1', 20, 1], ['demo-2', 20, 1], ['demo-3', 10, 3], ['demo-4', 2, 4], ['demo-5', 0, 5],
     ])
     expect(stats.ruleTotals.map((rule) => [rule.ruleId, rule.count])).toEqual([
-      ['rrn', 8], ['phone', 14], ['email', 15], ['card', 5], ['name', 7], ['address', 3],
+      ['rrn', 8], ['phone', 14], ['email', 15], ['card', 5], ['name', 7], ['address', 3], ['account', 0],
     ])
-    expect(stats.userRuleCounts[4].counts).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0 })
+    expect(stats.userRuleCounts[4].counts).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0, account: 0 })
   })
 })

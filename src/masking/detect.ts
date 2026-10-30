@@ -16,6 +16,7 @@ export function countByRule(matches: readonly Match[]): Record<RuleId, number> {
     card: 0,
     name: 0,
     address: 0,
+    account: 0,
   }
   for (const match of matches) counts[match.ruleId] += 1
   return counts
