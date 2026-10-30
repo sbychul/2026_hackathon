@@ -5,8 +5,7 @@ import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
 import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import { RULES, type RuleId } from '../rules/rules'
-import { extractPdf, type PdfText } from '../lib/pdf/extract'
-import { detectPdf } from '../lib/pdf/result'
+import { readServicePdf, type ServicePdf } from '../lib/pdf/service'
 import RegionCoordinates from '../components/pdf/RegionCoordinates'
 import { type ManualRegion } from '../lib/pdf/manualRegions'
 import type { PdfMaskRegion } from '../lib/pdf/export'
@@ -26,7 +25,9 @@ export default function PdfResultPage(props: PdfResultProps) {
 
 // 개인과 기업 모드에서 자동 탐지와 직접 영역을 함께 가린다.
 function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProps) {
-  const [document, setDocument] = useState<{ file: File; bytes: Uint8Array; text: PdfText } | null>(null)
+  const [document, setDocument] = useState<(ServicePdf & { file: File }) | null>(null)
+  const [progress, setProgress] = useState('파일의 글자와 위치를 확인하고 있어요…')
+  const processing = useRef<AbortController | null>(null)
   const enterprise = mode === 'company'
   const completion = useMaskingCompletion(enterprise, 'pdf')
   const [manual, setManual] = useState<ManualRegion[]>([])
@@ -45,24 +46,34 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
 
   useEffect(() => {
     let cancelled = false
-    // 원본은 메모리에서만 읽고, 글자가 없는 쪽은 안전하게 처리를 중단한다.
+    const controller = new AbortController()
+    processing.current = controller
+    // 글자 층이 없어도 모델로 읽고, 실패나 취소는 탐지 0건과 구분한다.
     const read = async () => {
       try {
-        const bytes = new Uint8Array(await file.arrayBuffer())
-        const text = await extractPdf(bytes)
-        if (text.emptyPages.length) {
-          throw new Error(`${text.emptyPages.join(', ')}쪽에 읽을 수 있는 글자가 없어요. 스캔본은 지원하지 않아요. 글자가 들어 있는 PDF를 첨부해 주세요.`)
-        }
-        if (!cancelled) setDocument({ file, bytes, text })
+        const result = await readServicePdf(file, {
+          signal: controller.signal,
+          // 실제 수신량과 인식 단계만 안내하고 원문 글자는 기록하지 않는다.
+          onProgress: (page, total, status) => {
+            if (cancelled) return
+            const stage = status.stage === 'models'
+              ? status.modelsReady ? '모델 준비 완료' : status.completed === status.total ? '모델 실행기를 준비하고 있어요' : `모델을 받고 있어요 · ${Math.round(status.completed / Math.max(1, status.total) * 100)}%`
+              : status.stage === 'detect' ? '글자 위치를 찾고 있어요'
+              : status.stage === 'recognize' ? `글자를 읽고 있어요 · ${status.completed}/${status.total}`
+              : status.stage === 'text' ? '저장된 글자를 읽고 있어요' : '페이지를 확인하고 있어요'
+            setProgress(`${page}/${total}쪽 · ${stage}`)
+          },
+        })
+        if (!cancelled) setDocument({ file, ...result })
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : 'PDF를 읽지 못했어요. 다른 파일을 첨부해 주세요.')
       }
     }
     void read()
-    return () => { cancelled = true }
+    return () => { cancelled = true; controller.abort() }
   }, [file])
 
-  const matches = useMemo(() => document?.file === file ? detectPdf(document.text.pages) : [], [document, file])
+  const matches = useMemo(() => document?.file === file ? document.matches : [], [document, file])
   const selected = useMemo(() => selectAutomaticMatches(matches, off, mode), [matches, off, mode])
   const automatic = useMemo(() => selected.flatMap((match) => match.regions), [selected])
   const regions = useMemo(() => [...automatic, ...manual], [automatic, manual])
@@ -132,7 +143,10 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
       </div>
       {enterprise && <EnterpriseNotice />}
       {enterprise && <p className="result-desc" role={completion.status === 'failed' ? 'alert' : 'status'}>{completion.message}</p>}
-      {error ? <p role="alert">{error}</p> : !document ? <p role="status">파일의 글자와 위치를 확인하고 있어요…</p> : (
+      {error ? <p role="alert">{error}</p> : !document ? <div>
+        <p role="status">{progress}</p>
+        <Button variant="secondary" onClick={() => processing.current?.abort()}>처리 취소</Button>
+      </div> : (
         <div className="work-area">
           <section className="found" aria-label="찾은 항목">
             <div className="found-head">

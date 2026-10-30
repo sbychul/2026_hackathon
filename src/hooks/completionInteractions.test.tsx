@@ -15,10 +15,16 @@ const fake = vi.hoisted(() => ({
 
 vi.mock('../api/detections', () => ({ saveDetections: fake.save }))
 vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({ GlobalWorkerOptions: {} }))
-vi.mock('../lib/pdf/extract', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../lib/pdf/extract')>(),
-  extractPdf: fake.extract,
-}))
+vi.mock('../lib/pdf/service', async () => {
+  const { detectPdf } = await import('../lib/pdf/result')
+  return {
+    // 인식 어댑터만 대체하고 실제 항목·좌표 변환과 완료 상태를 함께 검사한다.
+    readServicePdf: async () => {
+      const text = await fake.extract()
+      return { bytes: new Uint8Array(1), text, matches: detectPdf(text.pages) }
+    },
+  }
+})
 vi.mock('../components/PdfPreview', () => ({
   // 무거운 PDF 그리기만 대체하고 부모의 최신 영역과 완료 알림을 그대로 연결한다.
   default: (props: ComponentProps<typeof PdfPreview>) => {

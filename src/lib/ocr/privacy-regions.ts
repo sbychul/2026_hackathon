@@ -3,6 +3,7 @@ import { RULES, type RuleId } from '../../rules/rules'
 import { pageBox } from './geometry'
 import type { OcrLine } from './types'
 import type { PdfMaskRegion } from '../pdf/export'
+import type { PdfMatch } from '../pdf/result'
 
 export type RuleCounts = Partial<Record<RuleId, number>>
 const phoneRules=RULES.filter(rule=>rule.id==='phone')
@@ -44,11 +45,12 @@ function pageText(lines: OcrLine[], joinDigits=false) {
 }
 
 // 공통 규칙 전체로 찾은 구간을 원래 글자 조각에 연결하며 해당 영역을 중복 없이 가린다.
-export function privacyRegions(lines: OcrLine[], pageNumber: number, imageWidth: number, imageHeight: number, pageWidth: number, pageHeight: number): { regions: PdfMaskRegion[]; count: number; counts: RuleCounts } {
+export function privacyRegions(lines: OcrLine[], pageNumber: number, imageWidth: number, imageHeight: number, pageWidth: number, pageHeight: number): { regions: PdfMaskRegion[]; count: number; counts: RuleCounts; matches: PdfMatch[] } {
   const normal=pageText(lines), joined=pageText(lines,true)
   const counts:RuleCounts={}
   const selected=new Set<OcrLine>()
   const found:Array<{start:number;end:number}>=[]
+  const matches: PdfMatch[] = []
   // 원래 공백의 카드·계좌 등 공통 규칙 결과를 유지하고, 숫자 결합은 전화번호 보완에만 쓴다.
   const views=[{...normal,rules:RULES}]
   if (joined.text!==normal.text) views.push({...joined,rules:phoneRules})
@@ -61,8 +63,10 @@ export function privacyRegions(lines: OcrLine[], pageNumber: number, imageWidth:
     // 두 문자열의 위치를 원래 조각 기준으로 환산해 중복 탐지와 중복 집계를 막는다.
     if (found.some(previous=>start<previous.end&&end>previous.start)) continue
     found.push({start,end})
+    matches.push({ ...match, pageNumber, value: text.slice(match.start, match.end),
+      regions: covered.map(({ line }) => ({ pageNumber, ...pageBox(line.box,imageWidth,imageHeight,pageWidth,pageHeight) })) })
     counts[match.ruleId]=(counts[match.ruleId]??0)+1
     for (const span of covered) selected.add(span.line)
   }
-  return {count:found.length,counts,regions:[...selected].map(line=>({pageNumber,...pageBox(line.box,imageWidth,imageHeight,pageWidth,pageHeight)}))}
+  return {count:found.length,counts,matches,regions:[...selected].map(line=>({pageNumber,...pageBox(line.box,imageWidth,imageHeight,pageWidth,pageHeight)}))}
 }
