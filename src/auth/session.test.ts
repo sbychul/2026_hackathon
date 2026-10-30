@@ -87,6 +87,32 @@ describe('화면 인증 상태', () => {
     expect(session.getSnapshot().revision).toBeGreaterThan(revision)
   })
 
+  it.each(['로그인 실패', '세션 만료', '프로필 조회 실패'])('%s 안내는 비로그인 재조회 뒤에도 유지하고 재로그인 성공 시 지운다', async (scenario) => {
+    const { api, session } = setup()
+    if (scenario === '로그인 실패') {
+      await session.refresh()
+      api.login.mockRejectedValueOnce(new Error('검증용 프로필 오류'))
+      await session.signIn(input)
+    } else {
+      api.getCurrentUser.mockResolvedValueOnce(employee)
+      await session.refresh()
+      if (scenario === '프로필 조회 실패') {
+        api.getCurrentUser.mockRejectedValueOnce(new Error('검증용 프로필 오류'))
+      }
+      await session.refresh()
+    }
+    const error = session.getSnapshot().error
+    expect(error).not.toBe('')
+
+    // 세션 정리 뒤 인증 이벤트가 예약한 재조회 순서를 재현한다.
+    await session.refresh()
+    await session.refresh()
+    expect(session.getSnapshot()).toMatchObject({ user: null, pending: false, error })
+
+    expect(await session.signIn(input)).toBe(true)
+    expect(session.getSnapshot()).toMatchObject({ user: employee, pending: false, error: '' })
+  })
+
   it('나중에 시작한 권한 확인보다 오래된 응답을 반영하지 않는다', async () => {
     const { api, session } = setup()
     let complete!: (user: CurrentUser) => void

@@ -37,9 +37,11 @@ export function createSession(api = auth) {
       const user = await api.getCurrentUser()
       if (current !== request) return
       const changed = user?.id !== previous?.id || user?.role !== previous?.role
-      update({ user, pending: false, error: previous && !user
-        ? '로그인이 만료됐어요. 기업 작업을 계속하려면 다시 로그인해 주세요.' : '',
-      revision: state.revision + (changed ? 1 : 0) })
+      // 비로그인 재조회만으로 앞서 표시한 실패·만료 안내를 지우지 않는다.
+      let error = state.error
+      if (user) error = ''
+      else if (previous) error = '로그인이 만료됐어요. 기업 작업을 계속하려면 다시 로그인해 주세요.'
+      update({ user, pending: false, error, revision: state.revision + (changed ? 1 : 0) })
     } catch {
       if (current !== request) return
       update({ user: null, pending: false, error: '프로필을 확인하지 못했어요. 연결 상태를 확인하고 다시 로그인해 주세요.', revision: state.revision + 1 })
