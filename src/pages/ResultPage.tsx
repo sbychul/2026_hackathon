@@ -6,6 +6,7 @@ import { selectAutomaticMatches, type MaskingMode } from '../components/enterpri
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
 import { detect } from '../masking/detect'
 import { mask, type MaskRange } from '../masking/mask'
+import { useMaskingCompletion } from '../hooks/useMaskingCompletion'
 import type { RuleId } from '../rules/rules'
 import chevronDown from '../assets/chevron-down.svg'
 import chevronRight from '../assets/chevron-right.svg'
@@ -67,8 +68,15 @@ interface ResultPageProps {
 }
 
 // 개인은 항목을 선택하고 기업은 모두 가린다. 직접 추가한 가림과 같은 결과를 복사한다.
-export default function ResultPage({ text, onRestart, mode = 'personal' }: ResultPageProps) {
+export default function ResultPage(props: ResultPageProps) {
+  const identity = useMemo(() => ({ text: props.text, mode: props.mode, key: crypto.randomUUID() }), [props.text, props.mode])
+  return <TextResultDocument key={identity.key} {...props} />
+}
+
+// 같은 입력의 재렌더링은 완료 상태를 유지하고 새 입력은 별도 작업으로 처리한다.
+function TextResultDocument({ text, onRestart, mode = 'personal' }: ResultPageProps) {
   const enterprise = mode === 'company'
+  const completion = useMaskingCompletion(enterprise, 'text')
   const matches = useMemo(() => detect(text), [text])
   const segments = useMemo(() => toSegments(text, matches), [text, matches])
   // 체크를 끈 항목의 순번. 처음에는 전부 켜져 있다.
@@ -184,6 +192,7 @@ export default function ResultPage({ text, onRestart, mode = 'personal' }: Resul
 
   // 가린 결과를 클립보드에 넣고 잠깐 버튼 글자를 바꾼다.
   const copyResult = async () => {
+    if (!completion.canExport) return
     try {
       await navigator.clipboard.writeText(masked)
       setCopyError(false)
@@ -212,15 +221,17 @@ export default function ResultPage({ text, onRestart, mode = 'personal' }: Resul
           <p className="visually-hidden" role="status">{notice}</p>
         </div>
         <div className="result-actions">
-          <Button variant="secondary" onClick={onRestart}>
+          <Button variant="secondary" disabled={completion.status === 'saving'} onClick={onRestart}>
             처음부터 다시
           </Button>
-          <Button onClick={copyResult}>
+          {enterprise && <Button disabled={completion.status !== 'ready'} onClick={() => void completion.complete(matches)}>{completion.buttonLabel}</Button>}
+          <Button disabled={!completion.canExport} onClick={copyResult}>
             {copied ? '복사했어요' : copyError ? '복사하지 못했어요' : '가린 결과 복사'}
           </Button>
         </div>
       </div>
       {enterprise && <EnterpriseNotice />}
+      {enterprise && <p className="result-desc" role={completion.status === 'failed' ? 'alert' : 'status'}>{completion.message}</p>}
 
       <div className="work-area">
         <section className="found" aria-label="찾은 항목">
