@@ -202,7 +202,7 @@ where user_id in (
   select u.id from demo_users d join auth.users u on lower(u.email) = lower(d.email)
 );
 
--- 탐지 기록을 넣는다. 생성 시각은 현재 시각을 넘지 않게 맞춘다.
+-- 탐지 기록을 넣는다. 날짜와 시각은 한국 시간 기준이며, 생성 시각은 현재 시각을 넘지 않게 맞춘다.
 insert into public.detections (user_id, rule_id, count, input_type, created_at)
 select
   u.id,
@@ -210,7 +210,9 @@ select
   p.count,
   p.input_type,
   least(
-    date_trunc('day', now()) - make_interval(days => p.days_ago) + make_interval(hours => p.hour),
+    (date_trunc('day', now() at time zone 'Asia/Seoul')
+      - make_interval(days => p.days_ago)
+      + make_interval(hours => p.hour)) at time zone 'Asia/Seoul',
     now()
   )
 from demo_plan p
