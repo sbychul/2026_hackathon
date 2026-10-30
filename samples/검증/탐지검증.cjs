@@ -10,6 +10,8 @@ new Function('exports', stripTypeScriptTypes(source).replace(/export /g, '') + '
 const core = new Set(['rrn','phone','email','card']);
 const detectorSource=fs.readFileSync(path.join(root,'src/masking/detect.ts'),'utf8');
 const projectDetect=new Function('RULES',stripTypeScriptTypes(detectorSource).replace(/^import .*$/gm,'').replace(/export /g,'')+'\nreturn detect;')(box.RULES);
+const maskerSource=fs.readFileSync(path.join(root,'src/masking/mask.ts'),'utf8');
+const projectMask=new Function(stripTypeScriptTypes(maskerSource).replace(/^import .*$/gm,'').replace(/export /g,'')+'\nreturn mask;')();
 
 // 프로젝트의 실제 탐지 모듈을 실행하고 정답 비교용 값과 위치를 구성한다.
 function detect(text) {
@@ -34,8 +36,13 @@ for(const c of cases){
  if(c.값)assert.deepEqual(matches.map(m=>m.값),c.값,c.설명);
 }
 const demo=detect(fs.readFileSync(path.join(sample,'텍스트/00_전체규칙_통합시연.txt'),'utf8'));
-assert.deepEqual(demo.map(m=>m.유형),['name','rrn','phone','email','card','address']);
+assert.deepEqual(demo.map(m=>m.유형),['name','rrn','phone','email','card','address','account']);
+const accountText='계좌번호: 가상은행 123-456-789012';
+const accountMatches=projectDetect(accountText);
+assert.equal(projectMask(accountText,accountMatches),'계좌번호: 가상은행 **************');
 const baseline=path.join(sample,'정답/글자판_6개규칙_관측값.json');
-if(process.argv.includes('--기준저장'))fs.writeFileSync(baseline,JSON.stringify(snapshots,null,2)+'\n');
-else assert.deepEqual(snapshots,JSON.parse(fs.readFileSync(baseline,'utf8')),'현재 탐지 결과가 기록된 관측값과 다릅니다.');
-console.log(JSON.stringify({글자문서:gold.length,핵심4개탐지:gold.reduce((n,d)=>n+d.정답.length,0),전체6개탐지:snapshots.reduce((n,d)=>n+d.전체탐지.length,0),경계사례:cases.length,통합시연:demo.length}));
+// 기존 여섯 규칙의 기록을 유지하고 새 계좌번호 규칙은 독립 경계 사례로 검증한다.
+const legacySnapshots=snapshots.map(doc=>({...doc,전체탐지:doc.전체탐지.filter(match=>match.유형!=='account')}));
+if(process.argv.includes('--기준저장'))fs.writeFileSync(baseline,JSON.stringify(legacySnapshots,null,2)+'\n');
+else assert.deepEqual(legacySnapshots,JSON.parse(fs.readFileSync(baseline,'utf8')),'현재 탐지 결과가 기록된 관측값과 다릅니다.');
+console.log(JSON.stringify({글자문서:gold.length,핵심4개탐지:gold.reduce((n,d)=>n+d.정답.length,0),기존6개탐지:legacySnapshots.reduce((n,d)=>n+d.전체탐지.length,0),전체7개탐지:snapshots.reduce((n,d)=>n+d.전체탐지.length,0),경계사례:cases.length,통합시연:demo.length}));

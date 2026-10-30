@@ -37,16 +37,24 @@ export function passesLuhn(value: string): boolean {
 }
 
 // 이메일 후보의 점 위치와 도메인 이름을 검사해 잘못된 형식을 거른다.
+const EMAIL_LOCAL_CHARACTERS = 'A-Za-z0-9!#$%&\'*+/=?^_`{|}~\\-'
+const EMAIL_LOCAL_PART = `[${EMAIL_LOCAL_CHARACTERS}]+(?:\\.[${EMAIL_LOCAL_CHARACTERS}]+)*`
+
 function isValidEmail(value: string): boolean {
   const parts = value.split('@')
   if (parts.length !== 2 || value.length > 254) return false
   const local = parts[0]!
   const domain = parts[1]!
-  if (local.length > 64 || !/^[A-Za-z0-9_%+-]+(?:\.[A-Za-z0-9_%+-]+)*$/.test(local)) return false
+  if (local.length > 64 || !new RegExp(`^${EMAIL_LOCAL_PART}$`).test(local)) return false
   const labels = domain.split('.')
   return labels.length >= 2
     && labels.every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label))
     && /^[A-Za-z]{2,63}$/.test(labels[labels.length - 1]!)
+}
+
+// 이름 입력란의 명확한 미작성 상태값은 사람 이름으로 집계하지 않는다.
+function isValidName(value: string): boolean {
+  return !['미입력', '미기재', '미작성', '없음'].includes(value)
 }
 
 // 하이픈을 제외한 계좌번호의 숫자가 열 자리부터 열네 자리인지 검사한다.
@@ -90,8 +98,13 @@ export const RULES: Rule[] = [
   {
     id: 'email',
     name: '이메일',
-    // 끝의 하이픈·밑줄은 구두점으로 허용하고 도메인의 마지막 영문 부분까지만 후보에 담는다.
-    pattern: /(?<![A-Za-z0-9._%+@-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,63}(?![A-Za-z0-9@]|\.[A-Za-z0-9.-])/g,
+    // 비인용 아이디의 허용 기호를 경계에도 적용해 이메일 앞부분이 남지 않게 한다.
+    pattern: new RegExp(
+      `(?<![${EMAIL_LOCAL_CHARACTERS}.@()[\\],:"\\\\-])${EMAIL_LOCAL_PART}`
+        + '@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,63}'
+        + '(?![A-Za-z0-9@]|\\.[A-Za-z0-9.-])',
+      'g',
+    ),
     validate: isValidEmail,
   },
   {
@@ -104,8 +117,9 @@ export const RULES: Rule[] = [
   {
     id: 'name',
     name: '이름',
-    // 라벨("이름: ", "성명 ")은 남기고 뒤의 한글 2~4자만 잡는다.
-    pattern: /(?<=(?:이름|성명|성함)\s*(?:[:：]\s*|\s))[가-힣]{2,4}(?![가-힣])/g,
+    // 다른 단어에 붙지 않은 라벨만 허용하고 라벨 뒤의 한글 2~4자만 잡는다.
+    pattern: /(?<=(?<![\p{L}\p{N}_])(?:이름|성명|성함)\s*(?:[:：]\s*|\s))[가-힣]{2,4}(?![가-힣])/gu,
+    validate: isValidName,
   },
   {
     id: 'address',
