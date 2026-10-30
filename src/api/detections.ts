@@ -19,6 +19,8 @@ export async function saveDetections(input: SaveDetectionsInput): Promise<SaveDe
   }
   const counts: { ruleId: RuleId; count: number }[] = []
   for (const [ruleId, count] of Object.entries(input.counts)) {
+    // 값이 undefined인 룰은 생략한 룰과 같다.
+    if (count === undefined) continue
     const rule = RULES.find((item) => item.id === ruleId)
     if (!rule || !Number.isInteger(count) || count < 0 || count > 2_147_483_647) {
       throw new Error('등록된 룰과 0 이상의 정수 건수를 입력해야 합니다.')
@@ -26,9 +28,10 @@ export async function saveDetections(input: SaveDetectionsInput): Promise<SaveDe
     if (count > 0) counts.push({ ruleId: rule.id, count })
   }
 
+  if (counts.length === 0) return { savedRows: 0 }
   const user = await getCurrentUser()
   // 개인 모드는 기록을 남기지 않는다.
-  if (!user || counts.length === 0) return { savedRows: 0 }
+  if (!user) return { savedRows: 0 }
 
   const rows = counts.map(({ ruleId, count }) => ({
     user_id: user.id,

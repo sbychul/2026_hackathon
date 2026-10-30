@@ -20,6 +20,7 @@ interface ProfileRow {
 }
 
 interface DetectionRow {
+  id: string
   user_id: string
   rule_id: string
   count: number
@@ -39,8 +40,10 @@ function aggregateStats(profiles: ProfileRow[], detections: DetectionRow[]): Adm
   const totals = emptyCounts()
   for (const detection of detections) {
     const user = users.get(detection.user_id)
+    // 기록을 읽은 뒤 삭제된 사용자는 기록도 함께 삭제되므로 집계에서 뺀다.
+    if (!user) continue
     const rule = RULES.find((item) => item.id === detection.rule_id)
-    if (!user || !rule) throw new Error('통계의 사용자 또는 룰 정보를 확인할 수 없습니다.')
+    if (!rule) throw new Error('통계의 룰 정보를 확인할 수 없습니다.')
     user.total += detection.count
     user.counts[rule.id] += detection.count
     totals[rule.id] += detection.count
@@ -64,30 +67,27 @@ function aggregateStats(profiles: ProfileRow[], detections: DetectionRow[]): Adm
 export async function getAdminStats(): Promise<AdminStats> {
   const user = await getCurrentUser()
   if (!user || user.role !== 'admin') throw new Error('관리자 권한이 필요합니다.')
+  // 기록을 먼저 읽어야 조회 중 가입한 사용자의 기록이 프로필 없이 남지 않는다.
+  const detections = await fetchAll<DetectionRow>('detections', 'id, user_id, rule_id, count')
+  const profiles = await fetchAll<ProfileRow>('profiles', 'id, name')
+  return aggregateStats(profiles, detections)
+}
+
+// 마지막으로 읽은 id 다음부터 이어 읽어 조회 중 행이 추가·삭제되어도 중복 집계하지 않는다.
+async function fetchAll<T extends { id: string }>(table: 'profiles' | 'detections', columns: string): Promise<T[]> {
   const { supabase } = await import('../lib/supabase')
-  const profiles: ProfileRow[] = []
-  const detections: DetectionRow[] = []
+  const rows: T[] = []
   // 서버의 응답 행 제한보다 기록이 많아도 마지막 빈 페이지까지 읽는다.
   const pageSize = 1000
-  let offset = 0
   while (true) {
-    const { data, error } = await supabase.from('profiles')
-      .select('id, name').order('id').range(offset, offset + pageSize - 1)
+    let query = supabase.from(table).select(columns)
+    if (rows.length) query = query.gt('id', rows[rows.length - 1].id)
+    const { data, error } = await query.order('id').limit(pageSize)
     if (error) throw error
     if (!data?.length) break
-    profiles.push(...data)
-    offset += data.length
+    rows.push(...(data as unknown as T[]))
   }
-  offset = 0
-  while (true) {
-    const { data, error } = await supabase.from('detections')
-      .select('user_id, rule_id, count').order('id').range(offset, offset + pageSize - 1)
-    if (error) throw error
-    if (!data?.length) break
-    detections.push(...data)
-    offset += data.length
-  }
-  return aggregateStats(profiles, detections)
+  return rows
 }
 
 // 연결 설정 없이도 실제 조회와 같은 형태의 가짜 대시보드 통계를 반환한다.
@@ -100,12 +100,12 @@ export async function getMockAdminStats(): Promise<AdminStats> {
     { id: 'demo-5', name: '가상 직원 마' },
   ]
   return aggregateStats(profiles, [
-    { user_id: 'demo-1', rule_id: 'rrn', count: 8 },
-    { user_id: 'demo-1', rule_id: 'phone', count: 12 },
-    { user_id: 'demo-2', rule_id: 'email', count: 15 },
-    { user_id: 'demo-2', rule_id: 'card', count: 5 },
-    { user_id: 'demo-3', rule_id: 'name', count: 7 },
-    { user_id: 'demo-3', rule_id: 'address', count: 3 },
-    { user_id: 'demo-4', rule_id: 'phone', count: 2 },
+    { id: 'd1', user_id: 'demo-1', rule_id: 'rrn', count: 8 },
+    { id: 'd2', user_id: 'demo-1', rule_id: 'phone', count: 12 },
+    { id: 'd3', user_id: 'demo-2', rule_id: 'email', count: 15 },
+    { id: 'd4', user_id: 'demo-2', rule_id: 'card', count: 5 },
+    { id: 'd5', user_id: 'demo-3', rule_id: 'name', count: 7 },
+    { id: 'd6', user_id: 'demo-3', rule_id: 'address', count: 3 },
+    { id: 'd7', user_id: 'demo-4', rule_id: 'phone', count: 2 },
   ])
 }
