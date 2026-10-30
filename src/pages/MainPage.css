@@ -190,6 +190,77 @@
   cursor: not-allowed;
 }
 
+.enterprise-input {
+  align-items: flex-start;
+  padding: 64px;
+}
+
+.enterprise-input .center-col {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.enterprise-input .title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.55;
+  letter-spacing: normal;
+}
+
+.enterprise-input .desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.enterprise-input .input-box {
+  padding: 24px;
+  border-radius: 0;
+  margin: 0;
+}
+
+.enterprise-input-head h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.enterprise-input-head p,
+.enterprise-input-help {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.enterprise-input-tabs {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.enterprise-input .input-text {
+  min-height: 240px;
+  border-radius: 0;
+  padding: 24px;
+  background: var(--bg-page);
+}
+
+.enterprise-input .tool-row {
+  padding: 12px 0 0;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .enterprise-input { padding: 24px 20px; }
+  .enterprise-input .title { font-size: 26px; }
+  .enterprise-input .input-box { padding: 20px; }
+  .enterprise-input .tool-row { flex-wrap: wrap; }
+  .enterprise-input .run { margin-left: auto; }
+}
+
 /* 손가락으로 누르는 화면에서는 작은 버튼의 누름 영역을 44px로 키운다. */
 @media (pointer: coarse) {
   .attach {

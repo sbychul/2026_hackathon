@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
+import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
+import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
 import { detect } from '../masking/detect'
 import { mask, type MaskRange } from '../masking/mask'
@@ -61,10 +63,12 @@ function domPoint(root: Node, offset: number): [Node, number] {
 interface ResultPageProps {
   text: string
   onRestart: () => void
+  mode?: MaskingMode
 }
 
-// 탐지 결과 화면(개인 모드). 항목을 골라 가리고, 놓친 부분은 직접 골라 가린 뒤 결과를 복사한다.
-export default function ResultPage({ text, onRestart }: ResultPageProps) {
+// 개인은 항목을 선택하고 기업은 모두 가린다. 직접 추가한 가림과 같은 결과를 복사한다.
+export default function ResultPage({ text, onRestart, mode = 'personal' }: ResultPageProps) {
+  const enterprise = mode === 'company'
   const matches = useMemo(() => detect(text), [text])
   const segments = useMemo(() => toSegments(text, matches), [text, matches])
   // 체크를 끈 항목의 순번. 처음에는 전부 켜져 있다.
@@ -85,7 +89,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
   // 화면이 바뀌면 초점을 제목으로 옮겨 키보드·화면 읽기 사용자가 위치를 잃지 않게 한다.
   useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
-  const selected = matches.filter((_, i) => !off.has(i))
+  const selected = selectAutomaticMatches(matches, off, mode)
   const maskedRanges = mergeRanges([...selected, ...manual])
   // 화면과 복사가 같은 결과를 쓰도록 mask() 결과 하나만 만든다. mask()는 글자 수를 바꾸지 않는다.
   const masked = mask(text, maskedRanges)
@@ -171,6 +175,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
 
   // 묶음 번호를 누르면 그 종류를 전부 켜거나, 이미 전부 켜져 있으면 전부 끈다.
   const toggleGroup = (indexes: number[]) => {
+    if (enterprise) return
     const allOn = indexes.every((i) => !off.has(i))
     const next = new Set(off)
     indexes.forEach((i) => (allOn ? next.add(i) : next.delete(i)))
@@ -194,14 +199,15 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
   }
 
   return (
-    <main className="result-body">
+    <main className={`result-body ${enterprise ? 'enterprise-page enterprise-result' : ''}`}>
+      {enterprise && <p className="enterprise-eyebrow">기업 모드 · 자동 탐지 전체 가림</p>}
       <div className="result-head">
         <div>
           <h1 className="result-title" ref={titleRef} tabIndex={-1}>
-            {matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
+            {matches.length ? enterprise ? `${matches.length}건을 모두 가렸어요` : `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
           </h1>
           <p className="result-desc">
-            체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그해 가리거나, 가릴 글자를 입력하세요.
+            {enterprise ? '자동 탐지된 항목은 해제할 수 없어요. 놓친 부분은 원문에서 직접 추가로 가려 주세요.' : '체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그해 가리거나, 가릴 글자를 입력하세요.'}
           </p>
           <p className="visually-hidden" role="status">{notice}</p>
         </div>
@@ -214,19 +220,20 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
           </Button>
         </div>
       </div>
+      {enterprise && <EnterpriseNotice />}
 
       <div className="work-area">
         <section className="found" aria-label="찾은 항목">
           <div className="found-head">
             <span className="found-title">찾은 항목</span>
             <span className="mono found-count">
-              {selected.length} / {matches.length} 선택
+              {enterprise ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}
             </span>
           </div>
 
           {groups.map(({ id, items }) => {
             const indexes = items.map(({ i }) => i)
-            const onCount = indexes.filter((i) => !off.has(i)).length
+            const onCount = enterprise ? items.length : indexes.filter((i) => !off.has(i)).length
             const state = onCount === items.length ? 'all' : onCount === 0 ? 'none' : 'some'
             const open = !collapsed.has(id)
             return (
@@ -241,7 +248,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
                   >
                     <img src={open ? chevronDown : chevronRight} width={16} height={16} alt="" />
                   </button>
-                  <button
+                  {enterprise ? <span className="group-num all fixed" aria-hidden="true">{ruleNum(id)}</span> : <button
                     type="button"
                     role="checkbox"
                     aria-checked={state === 'all' ? true : state === 'none' ? false : 'mixed'}
@@ -250,8 +257,9 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
                     onClick={() => toggleGroup(indexes)}
                   >
                     {ruleNum(id)}
-                  </button>
+                  </button>}
                   <span className="group-name">{ruleName(id)}</span>
+                  {enterprise && <span className="enterprise-fixed">고정</span>}
                   <span className="mono group-count">
                     {state === 'all' ? items.length : `${onCount}/${items.length}`}
                   </span>
@@ -260,14 +268,16 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
                   <ul className="group-items">
                     {items.map(({ m, i }) => (
                       <li key={i}>
-                        <label className={`item ${off.has(i) ? 'off' : ''}`}>
+                        {enterprise ? <div className="item item-locked">
+                          <span className={valueClass(m.ruleId)}>{text.slice(m.start, m.end)}</span>
+                        </div> : <label className={`item ${off.has(i) ? 'off' : ''}`}>
                           <input
                             type="checkbox"
                             checked={!off.has(i)}
                             onChange={() => setOff(toggled(off, i))}
                           />
                           <span className={valueClass(m.ruleId)}>{text.slice(m.start, m.end)}</span>
-                        </label>
+                        </label>}
                       </li>
                     ))}
                   </ul>
@@ -329,7 +339,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
             <div ref={sourceRef} className="doc-text">
               {segments.map((s, k) =>
                 s.range ? (
-                  <mark key={k} className={`hit ${off.has(s.i!) ? '' : 'on'}`}>
+                  <mark key={k} className={`hit ${enterprise || !off.has(s.i!) ? 'on' : ''}`}>
                     <span className={valueClass(s.range.ruleId)}>{s.text}</span>
                     <RuleNum id={s.range.ruleId} />
                   </mark>

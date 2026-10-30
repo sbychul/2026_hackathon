@@ -1,0 +1,36 @@
+.enterprise-notice {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--accent-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.enterprise-eyebrow {
+  margin: 0;
+  color: var(--accent-default);
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 700;
+}
+
+.enterprise-fixed {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-default);
+  white-space: nowrap;
+}
+
+.enterprise-page .item-locked {
+  cursor: default;
+}
+
+.enterprise-page .group-num.fixed {
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.enterprise-page .result-actions {
+  flex-wrap: wrap;
+}
