@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import { RULE_ORDER, ruleName, ruleNum } from '../components/ruleDisplay'
-import { detect, type Match } from '../masking/detect'
-import { mask } from '../masking/mask'
+import { detect } from '../masking/detect'
+import { mask, type MaskRange } from '../masking/mask'
 import type { RuleId } from '../rules/rules'
 import chevronDown from '../assets/chevron-down.svg'
 import chevronRight from '../assets/chevron-right.svg'
@@ -13,18 +13,49 @@ import './ResultPage.css'
 const SANS_RULES: RuleId[] = ['name', 'address']
 const valueClass = (id: RuleId) => (SANS_RULES.includes(id) ? '' : 'mono')
 
-// 원문을 일반 글 조각과 탐지 조각으로 나눈다. i는 matches 안의 순번이다.
-type Segment = { text: string; match?: Match; i?: number }
-function toSegments(text: string, matches: Match[]): Segment[] {
-  const out: Segment[] = []
+// 글을 일반 조각과 구간 조각으로 나눈다. i는 ranges 안의 순번이다.
+type Segment<T> = { text: string; range?: T; i?: number }
+function toSegments<T extends MaskRange>(text: string, ranges: T[]): Segment<T>[] {
+  const out: Segment<T>[] = []
   let cursor = 0
-  matches.forEach((m, i) => {
-    if (m.start > cursor) out.push({ text: text.slice(cursor, m.start) })
-    out.push({ text: text.slice(m.start, m.end), match: m, i })
-    cursor = m.end
+  ranges.forEach((r, i) => {
+    if (r.start > cursor) out.push({ text: text.slice(cursor, r.start) })
+    out.push({ text: text.slice(r.start, r.end), range: r, i })
+    cursor = r.end
   })
   if (cursor < text.length) out.push({ text: text.slice(cursor) })
   return out
+}
+
+// 겹치거나 맞닿은 구간을 합쳐 앞에서부터 정리한다.
+function mergeRanges(ranges: readonly MaskRange[]): MaskRange[] {
+  const out: MaskRange[] = []
+  for (const r of [...ranges].sort((a, b) => a.start - b.start)) {
+    const last = out[out.length - 1]
+    if (last && r.start <= last.end) last.end = Math.max(last.end, r.end)
+    else out.push({ ...r })
+  }
+  return out
+}
+
+// 원문 칸 안의 한 지점이 원문 몇 번째 글자인지 센다. 번호 표시는 ::before라 글자 수에 들어가지 않는다.
+function textOffset(root: Node, node: Node, offset: number): number {
+  const range = document.createRange()
+  range.setStart(root, 0)
+  range.setEnd(node, offset)
+  return range.toString().length
+}
+
+// 원문 글자 위치를 원문 칸 안의 DOM 위치로 바꾼다.
+function domPoint(root: Node, offset: number): [Node, number] {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let left = offset
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const len = node.textContent?.length ?? 0
+    if (left <= len) return [node, left]
+    left -= len
+  }
+  return [root, root.childNodes.length]
 }
 
 interface ResultPageProps {
@@ -32,7 +63,7 @@ interface ResultPageProps {
   onRestart: () => void
 }
 
-// 탐지 결과 화면(개인 모드). 항목을 골라 가리고 결과를 복사한다.
+// 탐지 결과 화면(개인 모드). 항목을 골라 가리고, 놓친 부분은 직접 골라 가린 뒤 결과를 복사한다.
 export default function ResultPage({ text, onRestart }: ResultPageProps) {
   const matches = useMemo(() => detect(text), [text])
   const segments = useMemo(() => toSegments(text, matches), [text, matches])
@@ -40,14 +71,57 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
   const [off, setOff] = useState<Set<number>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<RuleId>>(new Set())
   const [copied, setCopied] = useState(false)
+  // 사용자가 원문에서 드래그해 직접 가린 구간과, 지금 드래그로 고른 구간
+  const [manual, setManual] = useState<MaskRange[]>([])
+  const [pending, setPending] = useState<MaskRange | null>(null)
+  const sourceRef = useRef<HTMLDivElement>(null)
 
   const selected = matches.filter((_, i) => !off.has(i))
+  const maskedRanges = mergeRanges([...selected, ...manual])
   // 화면과 복사가 같은 결과를 쓰도록 mask() 결과 하나만 만든다. mask()는 글자 수를 바꾸지 않는다.
-  const masked = mask(text, selected)
+  const masked = mask(text, maskedRanges)
   const groups = RULE_ORDER.map((id) => ({
     id,
     items: matches.map((m, i) => ({ m, i })).filter(({ m }) => m.ruleId === id),
   })).filter((g) => g.items.length > 0)
+
+  // 직접 가린 구간을 원문 칸에 표시한다. 글자를 감싸지 않아 탐지 표시와 겹쳐도 깨지지 않는다.
+  useEffect(() => {
+    const root = sourceRef.current
+    if (!root || typeof CSS === 'undefined' || !CSS.highlights) return
+    const ranges = manual.map(({ start, end }) => {
+      const range = document.createRange()
+      range.setStart(...domPoint(root, start))
+      range.setEnd(...domPoint(root, end))
+      return range
+    })
+    CSS.highlights.set('manual-mask', new Highlight(...ranges))
+    return () => {
+      CSS.highlights.delete('manual-mask')
+    }
+  }, [manual])
+
+  // 원문 칸에서 드래그로 고른 구간을 기억한다. 앞뒤 공백은 뺀다.
+  const readSelection = () => {
+    const root = sourceRef.current
+    const sel = getSelection()
+    if (!root || !sel || sel.isCollapsed || sel.rangeCount === 0) return setPending(null)
+    const r = sel.getRangeAt(0)
+    if (!root.contains(r.startContainer) || !root.contains(r.endContainer)) return setPending(null)
+    let start = textOffset(root, r.startContainer, r.startOffset)
+    let end = textOffset(root, r.endContainer, r.endOffset)
+    while (start < end && /\s/.test(text[start]!)) start++
+    while (end > start && /\s/.test(text[end - 1]!)) end--
+    setPending(end > start ? { start, end } : null)
+  }
+
+  // 고른 구간을 직접 가린 목록에 넣고 선택을 지운다.
+  const addManual = () => {
+    if (!pending) return
+    setManual([...manual, pending])
+    setPending(null)
+    getSelection()?.removeAllRanges()
+  }
 
   // 집합에 값이 있으면 빼고 없으면 넣은 새 집합을 만든다.
   const toggled = <T,>(set: Set<T>, value: T) => {
@@ -79,7 +153,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
             {matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}
           </h1>
           <p className="result-desc">
-            체크한 항목만 별표로 바뀌어요. 번호를 누르면 그 종류를 한꺼번에 고를 수 있어요.
+            체크한 항목만 별표로 바뀌어요. 놓친 부분은 원문에서 드래그한 뒤 가리기를 누르세요.
           </p>
         </div>
         <div className="result-actions">
@@ -150,17 +224,49 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
               </div>
             )
           })}
+
+          {manual.length > 0 && (
+            <div className="group">
+              <div className="group-head">
+                <span className="group-num manual" aria-hidden>
+                  +
+                </span>
+                <span className="group-name">직접 가린 부분</span>
+                <span className="mono group-count">{manual.length}</span>
+              </div>
+              <ul className="group-items">
+                {manual.map((r, k) => (
+                  <li key={`${r.start}-${r.end}-${k}`} className="item manual-item">
+                    <span className="manual-value">{text.slice(r.start, r.end)}</span>
+                    <Button
+                      variant="text"
+                      className="manual-cancel"
+                      aria-label={`${text.slice(r.start, r.end)} 가리기 취소`}
+                      onClick={() => setManual(manual.filter((_, j) => j !== k))}
+                    >
+                      취소
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
 
         <section className="doc">
           <div className="doc-col">
-            <h2 className="doc-head">원문</h2>
-            <div className="doc-text">
+            <div className="doc-head">
+              <h2 className="doc-title">원문</h2>
+              <Button variant="text" className="doc-action" disabled={!pending} onClick={addManual}>
+                선택한 부분 가리기
+              </Button>
+            </div>
+            <div ref={sourceRef} className="doc-text" onMouseUp={readSelection} onKeyUp={readSelection}>
               {segments.map((s, k) =>
-                s.match ? (
+                s.range ? (
                   <mark key={k} className={`hit ${off.has(s.i!) ? '' : 'on'}`}>
-                    <span className={valueClass(s.match.ruleId)}>{s.text}</span>
-                    <RuleNum id={s.match.ruleId} />
+                    <span className={valueClass(s.range.ruleId)}>{s.text}</span>
+                    <RuleNum id={s.range.ruleId} />
                   </mark>
                 ) : (
                   s.text
@@ -169,19 +275,17 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
             </div>
           </div>
           <div className="doc-col">
-            <h2 className="doc-head">가린 결과</h2>
+            <div className="doc-head">
+              <h2 className="doc-title">가린 결과</h2>
+            </div>
             <div className="doc-text">
-              {segments.map((s, k) =>
-                !s.match ? (
-                  s.text
-                ) : off.has(s.i!) ? (
-                  <span key={k} className={valueClass(s.match.ruleId)}>
+              {toSegments(masked, maskedRanges).map((s, k) =>
+                s.range ? (
+                  <span key={k} className="masked mono">
                     {s.text}
                   </span>
                 ) : (
-                  <span key={k} className="masked mono">
-                    {masked.slice(s.match.start, s.match.end)}
-                  </span>
+                  s.text
                 ),
               )}
             </div>

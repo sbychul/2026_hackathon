@@ -80,6 +80,11 @@ describe('mask', () => {
   it('구간이 없으면 원문 그대로 반환한다', () => {
     expect(mask('안녕', [])).toBe('안녕')
   })
+
+  it('직접 고른 구간이 탐지 구간과 일부 겹쳐도 합친 범위를 모두 가린다', () => {
+    expect(mask('가나다라마바', [{ start: 1, end: 3 }, { start: 2, end: 5 }])).toBe('가****바')
+    expect(mask('가나다라마바', [{ start: 0, end: 4 }, { start: 1, end: 2 }])).toBe('****마바')
+  })
 })
 
 describe('룰별 탐지 건수 집계', () => {

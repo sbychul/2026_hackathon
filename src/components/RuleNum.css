@@ -13,3 +13,7 @@
   line-height: 12px;
   color: var(--text-secondary);
 }
+
+.rule-num::before {
+  content: attr(data-num);
+}

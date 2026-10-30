@@ -190,11 +190,60 @@
 }
 
 .doc-head {
-  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px 24px;
   border-bottom: 1px solid var(--line-default);
+}
+
+.doc-title {
+  margin: 0;
   font-size: 13px;
   font-weight: 500;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+
+/* 원문 머리의 작은 글자 버튼 */
+.doc-action {
+  padding: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--accent-default);
+}
+
+.doc-action:disabled {
+  color: var(--text-tertiary);
+}
+
+/* 직접 가린 구간: 자동 탐지(초록)와 구분되게 진한 실선 밑줄 */
+::highlight(manual-mask) {
+  background-color: var(--bg-sunken);
+  text-decoration: underline 2px var(--line-strong);
+  text-underline-offset: 4px;
+}
+
+.group-num.manual {
+  border: 0;
+  background: var(--mask-bg);
+  color: var(--mask-fg);
+  cursor: default;
+}
+
+.manual-item {
+  padding-left: 30px;
+  cursor: default;
+}
+
+.manual-value {
+  flex: 1;
+}
+
+.manual-cancel {
+  padding: 0;
+  font-size: 13px;
   line-height: 18px;
   color: var(--text-secondary);
 }
