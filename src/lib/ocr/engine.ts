@@ -1,29 +1,36 @@
 import * as ort from 'onnxruntime-web/wasm'
 import { detectionBoxes } from './geometry'
 import { decodeText, normalizedImage } from './preprocess'
-import type { OcrLine, OcrProgress } from './types'
+import { downloadAsset } from './download'
+import type { ModelDownload, OcrLine, OcrProgress } from './types'
 
 const root = new URL(`${import.meta.env.BASE_URL}models/ocr/`, self.location.origin).href
 ort.env.wasm.numThreads = 1
 ort.env.wasm.wasmPaths = `${root}runtime/`
 ort.env.logLevel = 'error'
 
-// 공개 정적 자원만 같은 출처에서 내려받고 잘못된 응답을 거부한다.
-async function asset(name: string): Promise<ArrayBuffer> {
-  const response = await fetch(`${root}${name}`, { credentials: 'omit' })
-  if (!response.ok) throw new Error('모델 파일을 준비하지 못했습니다. 배포된 모델을 확인해 주세요.')
-  return response.arrayBuffer()
-}
-
 // 두 경량 모델과 해당 인식기의 문자 사전을 사용자 기기 메모리에 올린다.
-export async function loadEngine() {
+export async function loadEngine(progress: (value: OcrProgress) => void) {
+  const downloads: ModelDownload[] = [
+    { name:'ch_PP-OCRv5_det_mobile.onnx',label:'글자 위치 찾기 모델',loaded:0,total:4_819_576 },
+    { name:'korean_PP-OCRv5_rec_mobile.onnx',label:'한국어 글자 읽기 모델',loaded:0,total:13_488_748 },
+  ]
+  // 병렬로 받은 두 모델의 실제 수신량을 합산해 작업자 밖에 전달한다.
+  const report = (modelsReady = false) => progress({stage:'models',completed:downloads.reduce((sum,item)=>sum+item.loaded,0),total:downloads.reduce((sum,item)=>sum+item.total,0),downloads:downloads.map(item=>({...item})),modelsReady})
+  // 모델의 고정 크기를 기준으로 압축 전송과 캐시 응답에서도 올바른 비율을 표시한다.
+  const model = (index: number) => downloadAsset(`${root}${downloads[index].name}`,downloads[index].total,loaded=>{downloads[index].loaded=loaded;report()})
+  report()
   const [detector, recognizer, dictionaryBuffer] = await Promise.all([
-    asset('ch_PP-OCRv5_det_mobile.onnx').then(bytes => ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] })),
-    asset('korean_PP-OCRv5_rec_mobile.onnx').then(bytes => ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] })),
-    asset('korean-dictionary.json'),
+    model(0).then(bytes => ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] })),
+    model(1).then(bytes => ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] })),
+    fetch(`${root}korean-dictionary.json`,{credentials:'omit'}).then(response=>{
+      if (!response.ok) throw new Error('모델의 문자 사전을 준비하지 못했습니다.')
+      return response.arrayBuffer()
+    }),
   ])
   const dictionary: string[] = JSON.parse(new TextDecoder().decode(dictionaryBuffer))
   if (!Array.isArray(dictionary) || dictionary.length !== 11947 || dictionary.some(char => typeof char !== 'string')) throw new Error('모델의 문자 사전이 올바르지 않습니다.')
+  report(true)
   return { detector, recognizer, dictionary }
 }
 

@@ -2,6 +2,7 @@ import { scanPdfPhones, type ScannedPdfResult } from '../../pdf/ocr'
 import { downloadMaskedPdf } from '../../pdf/export'
 import './style.css'
 import { examplePdf, type ExampleKind } from './fixtures'
+import { resetModelProgress, showModelProgress, stopModelProgress } from './model-progress'
 
 const file = document.querySelector<HTMLInputElement>('#file')!
 const start = document.querySelector<HTMLButtonElement>('#start')!
@@ -16,10 +17,11 @@ let result: ScannedPdfResult | undefined, controller: AbortController | undefine
 let selectedFile: File | undefined
 
 // 이전 문서와 화면에 남은 원문을 해제한다.
-async function clearResult() {
+async function clearResult(resetModels = true) {
   download.disabled = true
   const previous = result; result = undefined
   pages.replaceChildren(); details.textContent = ''
+  if (resetModels) resetModelProgress()
   await previous?.source.loadingTask.destroy()
 }
 
@@ -56,6 +58,7 @@ start.addEventListener('click', async () => {
     await clearResult()
     status.textContent = '문서를 기기 안에서 여는 중입니다.'
     result = await scanPdfPhones(input, { signal: controller.signal, onProgress: (page, total, progress) => {
+      showModelProgress(progress)
       const phase = progress.stage === 'inspect' ? '이미지 포함 여부 확인 중' : progress.stage === 'text' ? '모델 없이 글자 직접 읽는 중' : progress.stage === 'models' ? '공개 모델 준비 중' : progress.stage === 'detect' ? '글자 위치 찾는 중' : `글자 읽는 중 ${progress.completed}/${progress.total}`
       status.textContent = `${page}/${total}쪽 · ${phase}`
     } })
@@ -71,7 +74,8 @@ start.addEventListener('click', async () => {
     download.disabled = result.count === 0
   } catch {
     status.textContent = controller.signal.aborted ? '작업을 취소했습니다. 다시 실행할 수 있습니다.' : '처리에 실패했습니다. 모델 파일, 문서 형식 또는 브라우저 지원 여부를 확인해 주세요. 개인정보가 없다는 뜻은 아닙니다.'
-    await clearResult()
+    await clearResult(false)
+    stopModelProgress(controller.signal.aborted)
   } finally { cancel.disabled = true; start.disabled = false; file.disabled = false; loadExample.disabled=false }
 })
 

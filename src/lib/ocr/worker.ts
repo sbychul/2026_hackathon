@@ -8,7 +8,7 @@ scope.onmessage = async ({ data: image }) => {
   try {
     if (!engine) {
       scope.postMessage({ kind: 'progress', progress: { stage: 'models', completed: 0, total: 1 } })
-      engine = loadEngine()
+      engine = loadEngine(progress => scope.postMessage({ kind: 'progress', progress }))
     }
     const lines = await recognizePage(image, await engine, progress => scope.postMessage({ kind: 'progress', progress }))
     scope.postMessage({ kind: 'result', lines })
