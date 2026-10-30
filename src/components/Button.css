@@ -1,0 +1,33 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 0;
+  border: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  padding-inline: 18px;
+  border-radius: 8px;
+  background: var(--accent-default);
+  color: var(--accent-on);
+}
+
+.btn-primary:disabled {
+  opacity: 0.35;
+}
+
+.btn-text {
+  border-radius: 4px;
+  background: none;
+  color: var(--text-primary);
+}
