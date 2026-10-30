@@ -8,7 +8,13 @@
   overflow: hidden;
 }
 
+.pdf-preview .doc-title {
+  flex-shrink: 0;
+}
+
+/* 긴 파일명이 머리 칸 밖으로 밀려나지 않게 줄인다. */
 .pdf-filename {
+  min-width: 0;
   color: var(--text-tertiary);
   font-size: 13px;
   overflow: hidden;

@@ -5,8 +5,9 @@ import MainPage from './pages/MainPage'
 import ResultPage from './pages/ResultPage'
 import PdfResultPage from './pages/PdfResultPage'
 import LoginPage from './pages/LoginPage'
-import Button from './components/Button'
+import AdminPage from './pages/AdminPage'
 import { useSession } from './auth/useSession'
+import { getMaskingMode, type MaskingMode } from './components/enterprise/maskingPolicy'
 import './App.css'
 
 type View = 'input' | 'loading' | 'result'
@@ -58,16 +59,16 @@ export default function App() {
         </div>}
         <div hidden={auth.pending} style={auth.pending ? undefined : { display: 'flex', flexDirection: 'column', flex: 1 }}>
           {dashboard && user?.role === 'admin'
-            ? <main className="login-page"><h1>관리자 통계</h1><p>통계 화면은 준비 중이에요.</p><Button onClick={() => setDashboard(false)}>가리기로 돌아가기</Button></main>
-            : <MaskingWorkspace key={`${auth.revision}-${personal}`} />}
+            ? <AdminPage onBack={() => setDashboard(false)} />
+            : <MaskingWorkspace key={`${auth.revision}-${personal}`} mode={getMaskingMode(user?.role ?? 'personal')} />}
         </div>
       </>}
     </div>
   )
 }
 
-// 기존 개인 모드의 입력·결과 전환을 유지하고 사용자가 바뀌면 원문을 초기화한다.
-function MaskingWorkspace() {
+// 확인된 역할을 입력·결과 화면에 전달하고 사용자가 바뀌면 원문을 초기화한다.
+function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
   const [view, setView] = useState<View>('input')
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
@@ -103,11 +104,11 @@ function MaskingWorkspace() {
 
   return (
       <div key={view} className={`stage ${leaving ? 'leave' : 'enter'}`} onAnimationEnd={handleAnimationEnd}>
-        {view === 'input' && <MainPage onFind={find} onFindPdf={findPdf} />}
+        {view === 'input' && <MainPage mode={mode} onFind={find} onFindPdf={findPdf} />}
         {view === 'loading' && <Spinner />}
         {view === 'result' && (pdf
-          ? <PdfResultPage file={pdf} onRestart={() => setLeaving(true)} />
-          : <ResultPage text={text} onRestart={() => setLeaving(true)} />)}
+          ? <PdfResultPage mode={mode} file={pdf} onRestart={() => setLeaving(true)} />
+          : <ResultPage mode={mode} text={text} onRestart={() => setLeaving(true)} />)}
       </div>
   )
 }

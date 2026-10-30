@@ -54,3 +54,9 @@
   .top-login-desktop { display: none; }
   .top-login-mobile { display: inline; }
 }
+
+/* 손가락으로 누르는 화면에서는 글자 버튼의 누름 영역을 44px로 키운다. */
+@media (pointer: coarse) {
+  .mode .btn-text { min-height: 44px; padding-inline: 4px; }
+  .top-bar { padding-block: 10px; }
+}

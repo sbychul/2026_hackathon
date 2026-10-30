@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import PdfPreview from '../components/PdfPreview'
+import EnterpriseNotice from '../components/enterprise/EnterpriseNotice'
+import { selectAutomaticMatches, type MaskingMode } from '../components/enterprise/maskingPolicy'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import { RULES, type RuleId } from '../rules/rules'
 import { extractPdf, type PdfText } from '../lib/pdf/extract'
@@ -13,7 +15,7 @@ import chevronRight from '../assets/pdf-chevron-right.svg'
 import './ResultPage.css'
 import './PdfResultPage.css'
 
-interface PdfResultProps { file: File; onRestart: () => void; mode?: 'personal' | 'company' }
+interface PdfResultProps { file: File; onRestart: () => void; mode?: MaskingMode }
 
 // 파일을 바꾸면 이전 문서의 선택과 다운로드 결과를 함께 폐기한다.
 export default function PdfResultPage(props: PdfResultProps) {
@@ -24,13 +26,17 @@ export default function PdfResultPage(props: PdfResultProps) {
 // 개인과 기업 모드에서 자동 탐지와 직접 영역을 함께 가린다.
 function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProps) {
   const [document, setDocument] = useState<{ file: File; bytes: Uint8Array; text: PdfText } | null>(null)
-  const company = mode === 'company'
+  const enterprise = mode === 'company'
   const [manual, setManual] = useState<ManualRegion[]>([])
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState('')
   const [off, setOff] = useState<Set<number>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<RuleId>>(new Set(['card', 'address']))
   const [output, setOutput] = useState<{ blob: Blob; bytes: Uint8Array; regions: readonly PdfMaskRegion[] } | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // 화면 전환 뒤 제목에 초점을 옮겨 현재 위치를 안내한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
   useEffect(() => {
     let cancelled = false
@@ -52,7 +58,8 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   }, [file])
 
   const matches = useMemo(() => document?.file === file ? detectPdf(document.text.pages) : [], [document, file])
-  const automatic = useMemo(() => matches.flatMap((match, i) => !company && off.has(i) ? [] : match.regions), [matches, off, company])
+  const selected = useMemo(() => selectAutomaticMatches(matches, off, mode), [matches, off, mode])
+  const automatic = useMemo(() => selected.flatMap((match) => match.regions), [selected])
   const regions = useMemo(() => [...automatic, ...manual], [automatic, manual])
   const ready = !!document && document.file === file && output?.bytes === document.bytes && output.regions === regions && !editing
 
@@ -73,7 +80,7 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
 
   // 한 종류의 항목을 모두 선택하거나 해제한다.
   const toggleGroup = (indexes: number[]) => {
-    if (company) return
+    if (enterprise) return
     const allOn = indexes.every((i) => !off.has(i))
     const next = new Set(off)
     indexes.forEach((i) => allOn ? next.add(i) : next.delete(i))
@@ -97,27 +104,29 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   }
 
   return (
-    <main className="result-body pdf-result">
+    <main className={`result-body pdf-result ${enterprise ? 'enterprise-page enterprise-result' : ''}`}>
+      {enterprise && <p className="enterprise-eyebrow">기업 모드 · PDF 전체 가림</p>}
       <div className="result-head">
         <div>
-          <h1 className="result-title">{error ? 'PDF를 확인해 주세요' : !document ? 'PDF를 읽고 있어요' : matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}</h1>
-          <p className="result-desc">{company ? '기업 자동 탐지는 해제할 수 없어요. ' : '선택한 자동 탐지와 직접 영역을 함께 가려요. '}페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
+          <h1 className="result-title" ref={titleRef} tabIndex={-1}>{error ? 'PDF를 확인해 주세요' : !document ? 'PDF를 읽고 있어요' : matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}</h1>
+          <p className="result-desc">{enterprise ? '기업 자동 탐지는 해제할 수 없어요. ' : '선택한 자동 탐지와 직접 영역을 함께 가려요. '}페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
         </div>
         <div className="result-actions">
           <Button variant="secondary" onClick={onRestart}>처음부터 다시</Button>
           <Button disabled={!ready} onClick={download}>가린 PDF 내려받기</Button>
         </div>
       </div>
+      {enterprise && <EnterpriseNotice />}
       {error ? <p role="alert">{error}</p> : !document ? <p role="status">파일의 글자와 위치를 확인하고 있어요…</p> : (
         <div className="work-area">
           <section className="found" aria-label="찾은 항목">
             <div className="found-head">
               <span className="found-title">찾은 항목</span>
-              <span className="mono found-count">{company ? matches.length : matches.length - off.size} / {matches.length} {company ? '고정' : '선택'}</span>
+              <span className="mono found-count">{enterprise ? `${matches.length}건 · 모두 고정` : `${selected.length} / ${matches.length} 선택`}</span>
             </div>
             {groups.map(({ id, items }) => {
               const indexes = items.map(({ i }) => i)
-              const count = indexes.filter((i) => (company || !off.has(i))).length
+              const count = enterprise ? items.length : indexes.filter((i) => !off.has(i)).length
               const state = count === items.length ? 'all' : count === 0 ? 'none' : 'some'
               const open = !collapsed.has(id)
               return (
@@ -126,17 +135,21 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
                     <button type="button" className="group-toggle" aria-expanded={open} aria-label={`${ruleName(id)} ${open ? '접기' : '펼치기'}`} onClick={() => setCollapsed(toggle(collapsed, id))}>
                       <img src={open ? chevronDown : chevronRight} width={16} height={16} alt="" />
                     </button>
-                    <button type="button" role="checkbox" aria-checked={state === 'some' ? 'mixed' : state === 'all'} aria-label={`${ruleName(id)} 모두 선택`} disabled={company || editing} className={`group-num ${state}`} onClick={() => toggleGroup(indexes)}>{order.indexOf(id) + 1}</button>
+                    {enterprise ? <span className="group-num all fixed" aria-hidden="true">{order.indexOf(id) + 1}</span> : <button type="button" role="checkbox" aria-checked={state === 'some' ? 'mixed' : state === 'all'} aria-label={`${ruleName(id)} 모두 선택`} disabled={editing} className={`group-num ${state}`} onClick={() => toggleGroup(indexes)}>{order.indexOf(id) + 1}</button>}
                     <span className="group-name">{ruleName(id)}</span>
+                    {enterprise && <span className="enterprise-fixed">고정</span>}
                     <span className="mono group-count">{state === 'all' ? items.length : `${count}/${items.length}`}</span>
                   </div>
                   {open && <ul className="group-items">{items.map(({ match, i }) => (
                     <li key={i}>
-                      <label className={`item ${!company && off.has(i) ? 'off' : ''}`}>
-                        <input type="checkbox" disabled={company || editing} checked={(company || !off.has(i))} onChange={() => { if (!company) setOff(toggle(off, i)) }} />
+                      {enterprise ? <div className="item item-locked">
                         <span className={['name', 'address'].includes(id) ? '' : 'mono'}>{match.value}</span>
                         <span className="pdf-item-page">{match.pageNumber}쪽</span>
-                      </label>
+                      </div> : <label className={`item ${off.has(i) ? 'off' : ''}`}>
+                        <input type="checkbox" disabled={editing} checked={!off.has(i)} onChange={() => setOff(toggle(off, i))} />
+                        <span className={['name', 'address'].includes(id) ? '' : 'mono'}>{match.value}</span>
+                        <span className="pdf-item-page">{match.pageNumber}쪽</span>
+                      </label>}
                     </li>
                   ))}</ul>}
                 </div>
