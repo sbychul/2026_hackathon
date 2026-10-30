@@ -28,6 +28,9 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   const [document, setDocument] = useState<{ file: File; bytes: Uint8Array; text: PdfText } | null>(null)
   const enterprise = mode === 'company'
   const [manual, setManual] = useState<ManualRegion[]>([])
+  // 직접 영역 추가·취소 결과를 화면 읽기 프로그램에 알린다.
+  const [notice, setNotice] = useState('')
+  const manualHeading = useRef<HTMLHeadingElement>(null)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState('')
   const [off, setOff] = useState<Set<number>>(new Set())
@@ -66,7 +69,15 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
   // 직접 영역은 룰별 탐지 결과와 분리해 저장에만 합친다.
   const addManual = useCallback((region: ManualRegion) => {
     setManual((previous) => [...previous, region])
+    setNotice(`${region.pageNumber}쪽에 직접 영역을 추가했어요.`)
   }, [])
+
+  // 직접 영역을 취소하고, 사라진 취소 버튼 대신 목록 제목으로 초점을 옮긴다.
+  const cancelManual = (id: string) => {
+    setManual((previous) => previous.filter((item) => item.id !== id))
+    setNotice('직접 영역을 취소했어요.')
+    manualHeading.current?.focus()
+  }
   const order = [...RULE_ORDER, ...RULES.map((rule) => rule.id).filter((id) => !RULE_ORDER.includes(id))]
   const groups = order.map((id) => ({ id, items: matches.map((match, i) => ({ match, i })).filter(({ match }) => match.ruleId === id) }))
     .filter(({ items }) => items.length)
@@ -157,11 +168,12 @@ function PdfResultDocument({ file, onRestart, mode = 'personal' }: PdfResultProp
             })}
             {!matches.length && <p className="result-desc">찾은 항목이 없어요. 미리보기에서 문서를 확인해 주세요.</p>}
             <div className="pdf-manual-list">
-              <h2>직접 추가 · {manual.length}개</h2>
+              <h2 ref={manualHeading} tabIndex={-1}>직접 추가 · {manual.length}개</h2>
+              <p className="visually-hidden" role="status">{notice}</p>
               {manual.map((region, index) => <article key={region.id} className="pdf-manual-item">
                 <h3>영역 {index + 1} · {region.pageNumber}쪽</h3>
                 <p>왼쪽 {Math.round(region.x)} · 위쪽 {Math.round(region.y)} · {Math.round(region.width)} × {Math.round(region.height)}</p>
-                <Button variant="secondary" disabled={editing} aria-label={`영역 ${index + 1} 취소`} onClick={() => setManual((previous) => previous.filter((item) => item.id !== region.id))}>이 영역 취소</Button>
+                <Button variant="secondary" disabled={editing} aria-label={`영역 ${index + 1} 취소`} onClick={() => cancelManual(region.id)}>이 영역 취소</Button>
               </article>)}
               <p>직접 가린 영역은 탐지 통계에 포함하지 않아요.</p>
               <RegionCoordinates pages={document.text.pages} onAdd={addManual} disabled={editing} />
