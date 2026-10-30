@@ -1,0 +1,59 @@
+.pdf-preview {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--line-default);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.pdf-filename {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-pages {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 24px 20px 20px;
+  background: var(--bg-sunken);
+  max-height: 75vh;
+  overflow: auto;
+}
+
+.pdf-page {
+  margin: 0;
+  width: 352px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.pdf-page img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line-default);
+  background: var(--bg-surface);
+}
+
+.pdf-page figcaption {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-tertiary);
+}
+
+.pdf-status {
+  margin: 0;
+  padding: 40px 24px;
+  color: var(--text-secondary);
+}

@@ -1,16 +1,40 @@
-import { useRef, useState, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import Button from '../components/Button'
 import RuleNum from '../components/RuleNum'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
 import lockIcon from '../assets/lock.svg'
 import clipIcon from '../assets/clip.svg'
+import pdfIcon from '../assets/pdf-file.svg'
+import closeIcon from '../assets/close.svg'
 import './MainPage.css'
 
 // 메인(입력) 화면. 글을 붙여넣거나 PDF를 골라 개인정보 찾기를 시작한다.
-export default function MainPage({ onFind }: { onFind: (text: string) => void }) {
+export default function MainPage({ onFind, onFindPdf }: { onFind: (text: string) => void; onFindPdf: (file: File) => void }) {
   const [text, setText] = useState('')
   const [pdf, setPdf] = useState<File | null>(null)
+  const [pageCount, setPageCount] = useState<{ file: File; count: number } | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!pdf) return
+    let cancelled = false
+    // 첨부 카드에 표시할 쪽수만 읽고 문서 자원을 해제한다.
+    const readCount = async () => {
+      const bytes = new Uint8Array(await pdf.arrayBuffer())
+      if (cancelled) return
+      const task = pdfjs.getDocument({ data: bytes })
+      try {
+        const doc = await task.promise
+        if (!cancelled) setPageCount({ file: pdf, count: doc.numPages })
+      } finally {
+        await task.destroy()
+      }
+    }
+    // 읽기 오류는 개인정보 찾기를 누른 뒤 결과 화면에서 자세히 안내한다.
+    void readCount().catch(() => {})
+    return () => { cancelled = true }
+  }, [pdf])
 
   // PDF만 받고, 다른 파일이면 팝업으로 막는다.
   const pickFile = (file: File | undefined) => {
@@ -29,11 +53,10 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
     pickFile(e.dataTransfer.files[0])
   }
 
-  // 글이 있으면 결과 화면으로 넘긴다. PDF 탐지는 아직 연결 전이다.
+  // 첨부 파일이 있으면 PDF를 우선 처리하고, 없으면 입력한 글을 넘긴다.
   const handleFind = () => {
-    if (text) onFind(text)
-    // ponytail: PDF 탐지는 #4 이후에 연결한다.
-    else alert('PDF 탐지는 아직 준비 중이에요.')
+    if (pdf) onFindPdf(pdf)
+    else if (text) onFind(text)
   }
 
   return (
@@ -45,13 +68,26 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
           넣은 글과 파일은 이 브라우저 밖으로 나가지 않아요.
         </p>
 
-        <div className="input-box" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+        <div className={`input-box ${pdf ? 'has-pdf' : ''}`} onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
+          {pdf && <div className="pdf-attachment">
+            <div className="pdf-chip">
+              <img src={pdfIcon} width={28} height={28} alt="" />
+              <div className="pdf-info">
+                <span className="pdf-name">{pdf.name}</span>
+                <span className="pdf-size">PDF · {pageCount?.file === pdf ? `${pageCount.count}쪽 · ` : ''}{Math.ceil(pdf.size / 1024)}KB</span>
+              </div>
+              <button type="button" className="pdf-remove" aria-label="PDF 첨부 제거" onClick={() => setPdf(null)}>
+                <img src={closeIcon} width={14} height={14} alt="" />
+              </button>
+            </div>
+          </div>}
           <textarea
             className="input-text"
             rows={1}
-            value={text}
+            value={pdf ? '' : text}
+            disabled={!!pdf}
             onChange={(e) => setText(e.target.value)}
-            placeholder="여기에 글을 붙여넣거나 PDF를 끌어다 놓으세요"
+            placeholder={pdf ? 'PDF를 첨부하면 글자는 따로 넣지 않아도 돼요.' : '여기에 글을 붙여넣거나 PDF를 끌어다 놓으세요'}
             aria-label="개인정보를 찾을 글"
           />
           <div className="tool-row">
@@ -71,7 +107,7 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
               }}
             />
             <div className="run">
-              <span className="count">{pdf ? pdf.name : `${text.length}자`}</span>
+              <span className="count">{pdf ? pageCount?.file === pdf ? `${pageCount.count}쪽` : 'PDF 첨부됨' : `${text.length}자`}</span>
               <Button disabled={!text && !pdf} onClick={handleFind}>
                 개인정보 찾기
               </Button>

@@ -1,0 +1,27 @@
+.pdf-result .result-head {
+  flex-wrap: wrap;
+}
+
+.pdf-result .pdf-preview {
+  flex: 1;
+}
+
+.pdf-item-page {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pdf-result .item input {
+  appearance: none;
+  border: 1.5px solid var(--text-tertiary);
+  border-radius: 2px;
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.pdf-result .item input:checked {
+  border-color: var(--accent-default);
+  background: var(--accent-default) url('../assets/check.svg') center / 12px 12px no-repeat;
+}

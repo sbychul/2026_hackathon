@@ -3,6 +3,7 @@ import TopBar from './components/TopBar'
 import Spinner from './components/Spinner'
 import MainPage from './pages/MainPage'
 import ResultPage from './pages/ResultPage'
+import PdfResultPage from './pages/PdfResultPage'
 import './App.css'
 
 type View = 'input' | 'loading' | 'result'
@@ -11,11 +12,19 @@ type View = 'input' | 'loading' | 'result'
 export default function App() {
   const [view, setView] = useState<View>('input')
   const [text, setText] = useState('')
+  const [pdf, setPdf] = useState<File | null>(null)
   const [leaving, setLeaving] = useState(false)
 
   // 찾을 글을 받고 입력 화면을 내보낸다.
   const find = (value: string) => {
+    setPdf(null)
     setText(value)
+    setLeaving(true)
+  }
+
+  // 첨부한 PDF를 결과 화면으로 넘긴다.
+  const findPdf = (file: File) => {
+    setPdf(file)
     setLeaving(true)
   }
 
@@ -24,11 +33,12 @@ export default function App() {
     if (e.target !== e.currentTarget || !leaving) return
     setLeaving(false)
     if (view === 'result') {
+      setPdf(null)
       setView('input')
       return
     }
     setView('loading')
-    // ponytail: 텍스트 탐지는 바로 끝나서 원이 거의 안 보인다. PDF 탐지(#4)가 붙으면 여기서 기다린다.
+    // 입력 화면 전환 뒤 결과 화면이 파일 읽기 상태를 직접 안내한다.
     await Promise.resolve()
     setView('result')
   }
@@ -37,9 +47,11 @@ export default function App() {
     <div className="app">
       <TopBar />
       <div key={view} className={`stage ${leaving ? 'leave' : 'enter'}`} onAnimationEnd={handleAnimationEnd}>
-        {view === 'input' && <MainPage onFind={find} />}
+        {view === 'input' && <MainPage onFind={find} onFindPdf={findPdf} />}
         {view === 'loading' && <Spinner />}
-        {view === 'result' && <ResultPage text={text} onRestart={() => setLeaving(true)} />}
+        {view === 'result' && (pdf
+          ? <PdfResultPage file={pdf} onRestart={() => setLeaving(true)} />
+          : <ResultPage text={text} onRestart={() => setLeaving(true)} />)}
       </div>
     </div>
   )
