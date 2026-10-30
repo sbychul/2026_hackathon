@@ -1,0 +1,27 @@
+# 환경변수 (키, 비밀번호). .env.example만 허용
+.env
+.env.*
+!.env.example
+
+# 의존성, 빌드 결과
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+
+# 로그
+logs
+*.log
+npm-debug.log*
+
+# 에디터, OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+
+# Supabase 로컬 파일
+supabase/.temp
+supabase/.branches
