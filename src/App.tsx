@@ -52,7 +52,10 @@ export default function App() {
       <TopBar user={user} pending={auth.pending} onLogin={() => setPersonal(false)} onLogout={() => void signOut()} onDashboard={() => void openDashboard()} onMasking={() => setDashboard(false)} />
       {showLogin ? <LoginPage pending={auth.pending} error={auth.error} onLogin={signIn} onPersonal={() => void enterPersonal()} /> : <>
         {auth.error && <p role="alert">{auth.error}</p>}
-        {auth.pending && <p role="status">로그인 상태를 확인하고 있어요…</p>}
+        {auth.pending && <div className="login-loading" role="status">
+          <span className="spinner" aria-hidden />
+          <p>로그인 상태를 확인하고 있어요…</p>
+        </div>}
         <div hidden={auth.pending} style={auth.pending ? undefined : { display: 'flex', flexDirection: 'column', flex: 1 }}>
           {dashboard && user?.role === 'admin'
             ? <main className="login-page"><h1>관리자 통계</h1><p>통계 화면은 준비 중이에요.</p><Button onClick={() => setDashboard(false)}>가리기로 돌아가기</Button></main>
