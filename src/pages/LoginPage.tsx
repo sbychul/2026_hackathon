@@ -27,7 +27,6 @@ export default function LoginPage({ pending, error, onLogin, onPersonal }: Login
 
   return (
     <main className="login-page">
-      <p className="login-kicker"><span className="login-desktop">이슈 35 · 로그인</span><span className="login-mobile">이슈 35·41</span></p>
       <h1><span className="login-desktop">안전한 공유를 시작해요</span><span className="login-mobile">공유 전에 안전하게</span></h1>
       <p className="login-intro"><span className="login-desktop">기업 계정으로 로그인하거나, 로그인 없이 개인으로 사용할 수 있어요.</span><span className="login-mobile">기업 계정으로 로그인해 주세요.</span></p>
       <div className="login-layout">

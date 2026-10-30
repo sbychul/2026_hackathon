@@ -3,14 +3,14 @@
   align-items: center;
   gap: 24px;
   min-height: 72px;
-  padding: 20px 32px;
+  /* 넓은 화면에서는 본문 최대 폭(1440px)과 같은 선에 맞춰 가운데로 모은다. */
+  padding: 20px max(32px, calc((100% - 1312px) / 2));
   border-bottom: 1px solid var(--line-default);
 }
 
 .service-name {
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 22px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .mode {
