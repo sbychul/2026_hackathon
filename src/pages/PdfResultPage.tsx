@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/Button'
 import PdfPreview from '../components/PdfPreview'
 import { RULE_ORDER, ruleName } from '../components/ruleDisplay'
@@ -18,6 +18,10 @@ export default function PdfResultPage({ file, onRestart }: { file: File; onResta
   const [off, setOff] = useState<Set<number>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<RuleId>>(new Set(['card', 'address']))
   const [output, setOutput] = useState<{ blob: Blob; regions: readonly PdfMaskRegion[] } | null>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+
+  // 화면이 바뀌면 초점을 제목으로 옮겨 키보드·화면 읽기 사용자가 위치를 잃지 않게 한다.
+  useEffect(() => titleRef.current?.focus({ preventScroll: true }), [])
 
   useEffect(() => {
     let cancelled = false
@@ -79,7 +83,7 @@ export default function PdfResultPage({ file, onRestart }: { file: File; onResta
     <main className="result-body pdf-result">
       <div className="result-head">
         <div>
-          <h1 className="result-title">{error ? 'PDF를 확인해 주세요' : !document ? 'PDF를 읽고 있어요' : matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}</h1>
+          <h1 className="result-title" ref={titleRef} tabIndex={-1}>{error ? 'PDF를 확인해 주세요' : !document ? 'PDF를 읽고 있어요' : matches.length ? `${matches.length}건을 찾았어요` : '개인정보를 찾지 못했어요'}</h1>
           <p className="result-desc">체크한 항목은 검게 덮고 페이지를 그림으로 다시 만들어요. 내려받은 PDF에서는 원문을 복사할 수 없어요.</p>
         </div>
         <div className="result-actions">
