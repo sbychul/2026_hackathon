@@ -71,6 +71,7 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
   const [off, setOff] = useState<Set<number>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<RuleId>>(new Set())
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState(false)
   // 사용자가 원문에서 드래그해 직접 가린 구간과, 지금 드래그로 고른 구간
   const [manual, setManual] = useState<MaskRange[]>([])
   const [pending, setPending] = useState<MaskRange | null>(null)
@@ -140,9 +141,16 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
 
   // 가린 결과를 클립보드에 넣고 잠깐 버튼 글자를 바꾼다.
   const copyResult = async () => {
-    await navigator.clipboard.writeText(masked)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(masked)
+      setCopyError(false)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+      setCopyError(true)
+      setTimeout(() => setCopyError(false), 2000)
+    }
   }
 
   return (
@@ -160,7 +168,9 @@ export default function ResultPage({ text, onRestart }: ResultPageProps) {
           <Button variant="secondary" onClick={onRestart}>
             처음부터 다시
           </Button>
-          <Button onClick={copyResult}>{copied ? '복사했어요' : '가린 결과 복사'}</Button>
+          <Button onClick={copyResult}>
+            {copied ? '복사했어요' : copyError ? '복사하지 못했어요' : '가린 결과 복사'}
+          </Button>
         </div>
       </div>
 
