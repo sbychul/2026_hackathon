@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Button from '../components/Button'
 import AdminStatsContent from '../components/admin/AdminStatsContent'
+import CustomWordsPanel from '../components/admin/CustomWordsPanel'
 import { createAdminStatsStore } from '../components/admin/adminStatsStore'
 import './AdminPage.css'
 
@@ -9,6 +10,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
   const [store] = useState(createAdminStatsStore)
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot)
   const statusHeading = useRef<HTMLHeadingElement>(null)
+  const [tab, setTab] = useState<'stats' | 'words'>('stats')
 
   useEffect(() => {
     void store.reload()
@@ -45,6 +47,27 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
     if (state.status === 'error' || state.status === 'denied') statusHeading.current?.focus()
   }, [state.status])
 
+  const tabs = (
+    <div className="admin-tabs" role="group" aria-label="관리 메뉴">
+      <Button variant={tab === 'stats' ? 'primary' : 'secondary'} aria-pressed={tab === 'stats'} onClick={() => setTab('stats')}>탐지 통계</Button>
+      <Button variant={tab === 'words' ? 'primary' : 'secondary'} aria-pressed={tab === 'words'} onClick={() => setTab('words')}>기업 가림 단어</Button>
+      <Button variant="secondary" onClick={onBack}>마스킹으로 돌아가기</Button>
+    </div>
+  )
+
+  // 관리자 권한이 확인된 경우에만 공통 단어 관리 화면을 보여준다.
+  if (tab === 'words' && state.status !== 'denied') return (
+    <main className="admin-page">
+      <header className="admin-heading">
+        <p className="admin-eyebrow">관리자 전용</p>
+        <h1>기업에서 함께 가릴 단어를 관리해요</h1>
+        <p>등록한 단어는 직원과 관리자의 텍스트·문서 결과에 모두 강제 적용돼요.</p>
+      </header>
+      {tabs}
+      <CustomWordsPanel />
+    </main>
+  )
+
   return (
     <main className="admin-page">
       <header className="admin-heading">
@@ -52,6 +75,7 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
         <h1 ref={titleRef} tabIndex={-1}><span className="admin-title-desktop">보안 교육이 필요한 지점을 살펴봐요</span><span className="admin-title-mobile">보안 교육 통계</span></h1>
         <p>탐지된 내용은 볼 수 없어요. 이름과 건수로 교육 주제를 확인해 주세요.</p>
       </header>
+      {tabs}
       <div className="admin-toolbar">
         <p>전체 기간 · 텍스트와 문서 누적</p>
         <Button onClick={() => void store.reload()} disabled={state.status === 'loading'}>{state.status === 'loading' ? '조회 중이에요' : '다시 조회'}</Button>

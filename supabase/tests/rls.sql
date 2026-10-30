@@ -34,8 +34,8 @@ do $$
 begin
   assert (select role = 'employee' from public.profiles where id = '00000000-0000-4000-8000-000000000601'),
     '가입 메타데이터로 관리자 역할을 얻으면 안 됨';
-  assert (select array_agg(name order by name) = array['account', 'address', 'card', 'email', 'name', 'phone', 'rrn'] from public.rules),
-    '기본 룰 일곱 개가 정확히 일치해야 함';
+  assert (select array_agg(name order by name) = array['account', 'address', 'card', 'custom', 'email', 'name', 'phone', 'rrn'] from public.rules),
+    '기본 룰 여덟 개가 정확히 일치해야 함';
   assert (select bool_and(enabled and id = name) from public.rules), '기본 룰은 켜져 있고 이름과 식별자가 같아야 함';
   assert (select array_agg(column_name::text order by ordinal_position)
     = array['id', 'user_id', 'rule_id', 'count', 'input_type', 'created_at']
@@ -71,6 +71,12 @@ $$;
 
 insert into public.detections (user_id, rule_id, count, input_type)
 values ('00000000-0000-4000-8000-000000000601', 'account', 3, 'pdf');
+-- 공통 단어 건수는 직원 본인 기록으로 저장할 수 있어야 한다.
+insert into public.detections (user_id, rule_id, count, input_type)
+values ('00000000-0000-4000-8000-000000000601', 'custom', 1, 'text');
+-- 직원은 공통 단어를 추가·수정할 수 없다.
+select pg_temp.expect_error($q$insert into public.custom_words (word) values ('직원 단어')$q$, '42501');
+select pg_temp.expect_error($q$update public.custom_words set word = '수정'$q$, '42501');
 update public.profiles set name = '검증 직원 이름 수정' where id = '00000000-0000-4000-8000-000000000601';
 
 select pg_temp.expect_error($q$insert into public.detections (user_id, rule_id, count, input_type)
@@ -104,9 +110,9 @@ set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000603","r
 do $$
 begin
   assert private.is_admin(), '관리자 역할을 데이터베이스에서 확인해야 함';
-  assert (select count(*) = 3 from public.detections
+  assert (select count(*) = 4 from public.detections
     where user_id in ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000602')),
-    '관리자는 두 직원의 기록 세 개를 조회해야 함';
+    '관리자는 두 직원의 기록 네 개를 조회해야 함';
   assert (select count(*) = 3 from public.profiles
     where id in ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000603')),
     '관리자는 통계 표시용 직원 이름을 조회해야 함';
@@ -121,6 +127,34 @@ select pg_temp.expect_error($q$update public.detections set count = 99$q$, '4250
 select pg_temp.expect_error($q$delete from public.detections$q$, '42501');
 select pg_temp.expect_error($q$update public.profiles set role = 'admin'
   where id = '00000000-0000-4000-8000-000000000602'$q$, '42501');
+
+-- 관리자만 공통 단어를 추가하고, 빈 값·긴 값·대소문자만 다른 중복은 거부되어야 한다.
+insert into public.custom_words (word) values ('검증Alpha');
+select pg_temp.expect_error($q$insert into public.custom_words (word) values ('검증ALPHA')$q$, '23505');
+select pg_temp.expect_error($q$insert into public.custom_words (word) values ('   ')$q$, '23514');
+select pg_temp.expect_error($q$insert into public.custom_words (word) values (repeat('가', 101))$q$, '23514');
+select pg_temp.expect_error($q$insert into public.custom_words (id, word)
+  values ('00000000-0000-4000-8000-000000000699', '검증 식별자')$q$, '42501');
+select pg_temp.expect_error($q$update public.custom_words set word = '수정'$q$, '42501');
+
+-- 직원은 공통 단어를 볼 수 있지만 지울 수 없다. 행 보안으로 0행 삭제가 된다.
+set local request.jwt.claim.sub = '00000000-0000-4000-8000-000000000602';
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000602","role":"authenticated"}';
+delete from public.custom_words where word = '검증Alpha';
+do $$
+begin
+  assert exists (select 1 from public.custom_words where word = '검증Alpha'), '직원이 공통 단어를 조회하고, 지우지 못해야 함';
+end;
+$$;
+
+set local request.jwt.claim.sub = '00000000-0000-4000-8000-000000000603';
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000603","role":"authenticated"}';
+delete from public.custom_words where word = '검증Alpha';
+do $$
+begin
+  assert not exists (select 1 from public.custom_words where word = '검증Alpha'), '관리자는 공통 단어를 지울 수 있어야 함';
+end;
+$$;
 
 set local request.jwt.claim.sub = '';
 set local request.jwt.claims = '{"role":"authenticated"}';
@@ -138,6 +172,7 @@ set local request.jwt.claim.sub = '';
 set local request.jwt.claims = '{"role":"anon"}';
 select pg_temp.expect_error($q$select * from public.detections$q$, '42501');
 select pg_temp.expect_error($q$select * from public.profiles$q$, '42501');
+select pg_temp.expect_error($q$select * from public.custom_words$q$, '42501');
 select pg_temp.expect_error($q$insert into public.detections (user_id, rule_id, count, input_type)
   values ('00000000-0000-4000-8000-000000000601', 'phone', 1, 'text')$q$, '42501');
 

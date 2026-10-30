@@ -44,7 +44,7 @@ export default function AdminStatsContent({ stats }: { stats: AdminStats }) {
         <p className="admin-table-description">전체 건수 내림차순 · 동점 다음 순위는 건너뛰어요. 기록이 없으면 0건이에요.</p>
         <div className="admin-table-wrap" tabIndex={0} role="region" aria-label="사람별 규칙별 탐지 건수 표">
           <table className="admin-table">
-            <caption className="admin-sr-only">사람별 7개 개인정보 규칙의 탐지 건수와 합계</caption>
+            <caption className="admin-sr-only">사람별 규칙의 탐지 건수와 합계</caption>
             <thead><tr><th scope="col">사용자 이름</th>{stats.ruleTotals.map((rule) => <th key={rule.ruleId} scope="col">{rule.name}</th>)}<th scope="col">합계</th></tr></thead>
             <tbody>{stats.userRuleCounts.map((user) => <tr key={user.userId}><th scope="row">{user.name}</th>{stats.ruleTotals.map((rule) => <td key={rule.ruleId}>{number.format(user.counts[rule.ruleId])}</td>)}<td>{number.format(user.total)}</td></tr>)}</tbody>
             <tfoot><tr><th scope="row">합계</th>{stats.ruleTotals.map((rule) => <td key={rule.ruleId}>{number.format(rule.count)}</td>)}<td>{number.format(total)}</td></tr></tfoot>

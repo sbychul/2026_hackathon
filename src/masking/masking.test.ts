@@ -88,20 +88,20 @@ describe('mask', () => {
 })
 
 describe('룰별 탐지 건수 집계', () => {
-  it('빈 목록이면 일곱 룰 모두 0을 반환한다', () => {
-    expect(countByRule([])).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0, account: 0 })
+  it('빈 목록이면 여덟 룰 모두 0을 반환한다', () => {
+    expect(countByRule([])).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0, account: 0, custom: 0 })
   })
 
-  it('실제 탐지 결과에서 같은 룰의 반복을 포함해 일곱 룰을 집계한다', () => {
+  it('실제 탐지 결과에서 같은 룰의 반복을 포함해 여덟 룰을 집계한다', () => {
     const text = '주민 900101-1234567, 전화 010-0000-0001, 010-0000-0002, 메일 demo@example.org, '
       + '카드 4111-1111-1111-1111, 이름: 가상인, 주소 서울특별시 강남구 테헤란로 123, 계좌번호: 123-456-789012'
-    expect(countByRule(detect(text))).toEqual({ rrn: 1, phone: 2, email: 1, card: 1, name: 1, address: 1, account: 1 })
+    expect(countByRule(detect(text))).toEqual({ rrn: 1, phone: 2, email: 1, card: 1, name: 1, address: 1, account: 1, custom: 0 })
   })
 
   it('개인 모드에서 선택한 항목만 전달하면 해당 항목만 집계한다', () => {
     const matches = detect('전화 010-0000-0001, 010-0000-0002, 메일 demo@example.org')
     const selected = matches.filter((match) => match.ruleId === 'phone').slice(0, 1)
-    expect(countByRule(selected)).toEqual({ rrn: 0, phone: 1, email: 0, card: 0, name: 0, address: 0, account: 0 })
+    expect(countByRule(selected)).toEqual({ rrn: 0, phone: 1, email: 0, card: 0, name: 0, address: 0, account: 0, custom: 0 })
   })
 
   it('입력 순서와 구간을 바꾸지 않고 호출마다 독립적인 결과를 반환한다', () => {
@@ -112,7 +112,7 @@ describe('룰별 탐지 건수 집계', () => {
     const before = structuredClone(matches)
     const first = countByRule(matches)
     first.email = 99
-    expect(countByRule(matches)).toEqual({ rrn: 0, phone: 1, email: 1, card: 0, name: 0, address: 0, account: 0 })
+    expect(countByRule(matches)).toEqual({ rrn: 0, phone: 1, email: 1, card: 0, name: 0, address: 0, account: 0, custom: 0 })
     expect(matches).toEqual(before)
   })
 })
