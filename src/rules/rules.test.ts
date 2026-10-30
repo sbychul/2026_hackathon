@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { countByRule, detect } from '../masking/detect'
 import { mask } from '../masking/mask'
-import { RULES, type RuleId } from './rules'
+import { RULES, setCustomWords, type RuleId } from './rules'
 
 // 합성 텍스트에서 해당 룰이 찾은 실제 구간을 확인한다.
 function find(ruleId: RuleId, text: string): string[] {
@@ -10,8 +10,8 @@ function find(ruleId: RuleId, text: string): string[] {
 }
 
 describe('일곱 가지 룰', () => {
-  it('기존 식별자 여섯 개의 순서를 유지하고 계좌번호를 끝에 추가한다', () => {
-    expect(RULES.map((rule) => rule.id)).toEqual(['rrn', 'phone', 'email', 'card', 'name', 'address', 'account'])
+  it('기존 식별자 여섯 개의 순서를 유지하고 계좌번호와 공통 단어를 끝에 추가한다', () => {
+    expect(RULES.map((rule) => rule.id)).toEqual(['rrn', 'phone', 'email', 'card', 'name', 'address', 'account', 'custom'])
   })
 
   it('같은 텍스트를 반복 검사해도 일곱 종류를 모두 찾는다', () => {
@@ -268,4 +268,19 @@ describe('주소 오탐 방지', () => {
       expect(find('address', `주소: ${address} 입니다.`)).toEqual([address])
     },
   )
+})
+
+describe('기업 공통 단어', () => {
+  afterEach(() => setCustomWords([]))
+
+  it('단어가 없으면 아무것도 탐지하지 않는다', () => {
+    setCustomWords([])
+    expect(find('custom', '가상프로젝트명')).toEqual([])
+  })
+
+  it('부분 일치와 영문 대소문자 무시로 모두 찾고 긴 단어를 우선한다', () => {
+    setCustomWords(['Alpha', '가상', '가상프로젝트명', 'a.b'])
+    expect(find('custom', '문서 가상프로젝트명과 ALPHA팀, alphabet, a.b, axb'))
+      .toEqual(['가상프로젝트명', 'ALPHA', 'alpha', 'a.b'])
+  })
 })

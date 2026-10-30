@@ -85,8 +85,8 @@ describe('가짜 통계', () => {
       ['demo-1', 20, 1], ['demo-2', 20, 1], ['demo-3', 10, 3], ['demo-4', 2, 4], ['demo-5', 0, 5],
     ])
     expect(stats.ruleTotals.map((rule) => [rule.ruleId, rule.count])).toEqual([
-      ['rrn', 8], ['phone', 14], ['email', 15], ['card', 5], ['name', 7], ['address', 3], ['account', 0],
+      ['rrn', 8], ['phone', 14], ['email', 15], ['card', 5], ['name', 7], ['address', 3], ['account', 0], ['custom', 0],
     ])
-    expect(stats.userRuleCounts[4].counts).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0, account: 0 })
+    expect(stats.userRuleCounts[4].counts).toEqual({ rrn: 0, phone: 0, email: 0, card: 0, name: 0, address: 0, account: 0, custom: 0 })
   })
 })

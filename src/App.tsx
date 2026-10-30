@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage'
 import AdminPage from './pages/AdminPage'
 import { useSession } from './auth/useSession'
 import { getMaskingMode, type MaskingMode } from './components/enterprise/maskingPolicy'
+import { applyCustomWords } from './api/customWords'
 import './App.css'
 
 type View = 'input' | 'loading' | 'result'
@@ -97,8 +98,9 @@ function MaskingWorkspace({ mode }: { mode: MaskingMode }) {
       return
     }
     setView('loading')
-    // 입력 화면 전환 뒤 결과 화면이 파일 읽기 상태를 직접 안내한다.
-    await Promise.resolve()
+    // 결과를 만들기 전에 최신 기업 공통 단어를 탐지 룰에 넣는다.
+    // ponytail: 조회 실패 시 직전에 받은 목록을 그대로 쓴다. 실패 안내가 필요하면 결과 화면에 상태를 넘긴다.
+    await applyCustomWords(mode === 'company').catch(() => {})
     setView('result')
   }
 

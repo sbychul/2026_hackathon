@@ -134,7 +134,7 @@ export default function MainPage({ onFind, onFindPdf, mode = 'personal' }: { onF
 
         <div className="rules">
           <span className="rules-label">찾는 항목</span>
-          {RULE_ORDER.map((id) => (
+          {RULE_ORDER.filter((id) => enterprise || id !== 'custom').map((id) => (
             <span key={id} className="rule">
               <RuleNum id={id} />
               {ruleName(id)}

@@ -1,6 +1,6 @@
 // 탐지 룰 정의. id는 Supabase `rules` 테이블의 룰 이름과 같아야 한다.
 
-export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address' | 'account'
+export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address' | 'account' | 'custom'
 
 export interface Rule {
   id: RuleId
@@ -82,6 +82,9 @@ const ACCOUNT_NUMBER = '[0-9]+(?:-[0-9]+)*'
 const ACCOUNT_LIST = `(?:${ACCOUNT_NUMBER}\\s*(?:,\\s*|및\\s+)${ACCOUNT_BANK})*`
 const ACCOUNT = `(?<=${ACCOUNT_LABEL}${ACCOUNT_SEPARATOR}${ACCOUNT_BANK}${ACCOUNT_LIST})${ACCOUNT_NUMBER}(?![0-9-])`
 
+// 어떤 글자에도 걸리지 않는 정규식
+const NEVER = /(?!)/g
+
 export const RULES: Rule[] = [
   {
     id: 'rrn',
@@ -133,4 +136,20 @@ export const RULES: Rule[] = [
     pattern: new RegExp(ACCOUNT, 'g'),
     validate: isValidAccount,
   },
+  {
+    id: 'custom',
+    name: '공통 단어',
+    // 기업 공통 단어가 없으면 아무것도 잡지 않는다. setCustomWords로 교체된다.
+    pattern: NEVER,
+  },
 ]
+
+// 관리자가 등록한 기업 공통 단어를 부분 일치·영문 대소문자 무시로 탐지하도록 바꾼다.
+// ponytail: 모듈 전역 상태라 탐지 호출 전에 목록을 넣어야 한다. 사용자별 목록이 필요해지면 인자로 넘긴다.
+export function setCustomWords(words: readonly string[]) {
+  const rule = RULES.find((item) => item.id === 'custom')!
+  const escaped = words.map((word) => word.trim()).filter(Boolean).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  // 긴 단어를 먼저 시도해야 짧은 단어가 긴 단어의 앞부분만 가리지 않는다.
+  escaped.sort((a, b) => b.length - a.length)
+  rule.pattern = escaped.length ? new RegExp(escaped.join('|'), 'gi') : NEVER
+}

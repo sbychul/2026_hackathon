@@ -12,7 +12,7 @@ import chevronRight from '../assets/chevron-right.svg'
 import './ResultPage.css'
 
 // 값이 한글이라 고정폭 글꼴을 쓰지 않는 룰
-const SANS_RULES: RuleId[] = ['name', 'address']
+const SANS_RULES: RuleId[] = ['name', 'address', 'custom']
 const valueClass = (id: RuleId) => (SANS_RULES.includes(id) ? '' : 'mono')
 
 // 글을 일반 조각과 구간 조각으로 나눈다. i는 ranges 안의 순번이다.
