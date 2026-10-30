@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detect } from '../masking/detect'
+import { countByRule, detect } from '../masking/detect'
 import { mask } from '../masking/mask'
 import { RULES, type RuleId } from './rules'
 
@@ -33,6 +33,14 @@ describe('계좌번호 탐지와 오탐 방지', () => {
     ['계좌번호： 카카오뱅크 12345678901234', '12345678901234'],
     ['계좌번호 : KB국민은행 123-4567-890', '123-4567-890'],
     ['계좌: 12345678901234입니다.', '12345678901234'],
+    ['계좌번호는 123-456-789012', '123-456-789012'],
+    ['계좌번호은 123-456-789012', '123-456-789012'],
+    ['계좌번호(국민) 123-456-789012', '123-456-789012'],
+    ['계좌번호 - 123-456-789012', '123-456-789012'],
+    ['계좌번호: 우리 은행 123-456-789012', '123-456-789012'],
+    ['계좌 번호: 123-456-789012', '123-456-789012'],
+    ['계좌 번호는(국민 은행) 123-456-789012', '123-456-789012'],
+    ['계좌: 한국 가상 은행 123-456-789012', '123-456-789012'],
   ])('라벨과 은행 이름을 보존하고 번호 전체만 가린다: %s', (text, account) => {
     const matches = detect(text, RULES.filter((rule) => rule.id === 'account'))
     expect(find('account', text)).toEqual([account])
@@ -47,6 +55,11 @@ describe('계좌번호 탐지와 오탐 방지', () => {
     '계좌번호: -123456789012', '계좌번호: 123456789012-',
     '계좌번호: 123--456789012', '계좌번호: 123 456 789012',
     '계좌번호: 123.456.789012',
+    '계좌번호: 1234567890123456',
+    '계좌번호: 한국 가상 시험 은행 123-456-789012',
+    '계좌를 알려주세요 123-456-789012',
+    '123-456-789012, 987-654-321098',
+    '123-456-789012 및 987-654-321098',
   ])('라벨이 없거나 번호 형식과 자릿수가 맞지 않으면 탐지하지 않는다: %s', (text) => {
     expect(find('account', text)).toEqual([])
   })
@@ -56,6 +69,42 @@ describe('계좌번호 탐지와 오탐 방지', () => {
     const expected = ['123-456-789012', '110-123-456789']
     expect(find('account', text)).toEqual(expected)
     expect(find('account', text)).toEqual(expected)
+  })
+
+  it.each([
+    '계좌번호: 123-456-789012, 987-654-321098',
+    '계좌번호: 123-456-789012 및 987-654-321098',
+    '계좌번호(국민) 123-456-789012, 우리 은행 987-654-321098',
+  ])('같은 라벨의 두 번째 번호까지 가린다: %s', (text) => {
+    const accounts = ['123-456-789012', '987-654-321098']
+    const matches = detect(text)
+    expect(find('account', text)).toEqual(accounts)
+    expect(matches.map((match) => match.ruleId)).toEqual(['account', 'account'])
+    expect(mask(text, matches)).toBe(accounts.reduce(
+      (result, account) => result.replace(account, '*'.repeat(account.length)), text,
+    ))
+  })
+
+  it('목록의 세 번째 번호도 찾고 자릿수가 잘못된 번호는 통째로 제외한다', () => {
+    const text = '계좌번호: 1234567890123456, 123-456-789012 및 987-654-321098'
+    expect(find('account', text)).toEqual(['123-456-789012', '987-654-321098'])
+  })
+
+  it('목록이 마침표로 끝나면 뒤의 라벨 없는 번호로 이어가지 않는다', () => {
+    expect(find('account', '계좌번호: 123-456-789012. 987-654-321098'))
+      .toEqual(['123-456-789012'])
+  })
+
+  it.each([
+    ['계좌번호: 010-1234-5678', 'phone'],
+    ['계좌: 900101-1234567', 'rrn'],
+  ])('같은 구간에서는 기존 룰만 집계하고 번호는 가린다: %s', (text, ruleId) => {
+    const matches = detect(text)
+    expect(matches).toHaveLength(1)
+    expect(matches[0].ruleId).toBe(ruleId)
+    expect(countByRule(matches)[ruleId as RuleId]).toBe(1)
+    expect(countByRule(matches).account).toBe(0)
+    expect(mask(text, matches)).toBe(text.replace(/[0-9-]+$/, (number) => '*'.repeat(number.length)))
   })
 })
 

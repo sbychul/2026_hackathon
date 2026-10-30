@@ -66,6 +66,14 @@ const JIBUN = '\\s+[가-힣0-9]+(?:동|리)\\s*\\d+(?:-\\d+)?(?:번지)?'
 const DETAIL = '(?:[\\s,]*\\d+(?:동|호|층))*'
 const ADDRESS = `${SIDO}${SIGUNGU}${EUPMYEON}(?:${ROAD}|${JIBUN})${DETAIL}`
 
+// 라벨과 은행 이름, 같은 목록의 앞선 번호는 탐지 구간에서 제외한다.
+const ACCOUNT_LABEL = '(?:계좌\\s*번호|계좌)(?:은|는)?'
+const ACCOUNT_SEPARATOR = '(?:\\s*[:：-]\\s*|\\s+|\\s*\\([가-힣A-Za-z ]+\\)\\s*[:：-]?\\s*)'
+const ACCOUNT_BANK = '(?:[가-힣A-Za-z]+\\s+){0,3}'
+const ACCOUNT_NUMBER = '[0-9]+(?:-[0-9]+)*'
+const ACCOUNT_LIST = `(?:${ACCOUNT_NUMBER}\\s*(?:,\\s*|및\\s+)${ACCOUNT_BANK})*`
+const ACCOUNT = `(?<=${ACCOUNT_LABEL}${ACCOUNT_SEPARATOR}${ACCOUNT_BANK}${ACCOUNT_LIST})${ACCOUNT_NUMBER}(?![0-9-])`
+
 export const RULES: Rule[] = [
   {
     id: 'rrn',
@@ -107,8 +115,8 @@ export const RULES: Rule[] = [
   {
     id: 'account',
     name: '계좌번호',
-    // 라벨과 선택적인 은행 이름은 남기고 숫자와 하이픈 묶음 전체만 검사한다.
-    pattern: /(?<=(?:계좌번호|계좌)\s*(?:[:：]\s*|\s)(?:[가-힣A-Za-z]+\s+)?)[0-9]+(?:-[0-9]+)*(?![0-9-])/g,
+    // 확장된 라벨과 쉼표·및으로 이어지는 목록에서도 번호만 검사한다.
+    pattern: new RegExp(ACCOUNT, 'g'),
     validate: isValidAccount,
   },
 ]

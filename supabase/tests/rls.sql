@@ -44,6 +44,9 @@ begin
 end;
 $$;
 
+-- 허용 목록 밖의 룰은 관리 연결에서도 검사 제약으로 거부되어야 한다.
+select pg_temp.expect_error($q$insert into public.rules (id, name) values ('x', 'x')$q$, '23514');
+
 -- 실제 관리자 지정은 신뢰할 수 있는 관리 연결로만 수행한다.
 update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-000000000603';
 insert into public.detections (user_id, rule_id, count, input_type) values
