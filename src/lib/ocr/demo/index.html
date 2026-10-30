@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; object-src 'none'; base-uri 'none'" /><title>스캔 문서 전화번호 가리기</title></head>
+<body>
+  <main>
+    <p class="eyebrow">내 기기에서 처리 · 첫 단계 시연</p>
+    <h1>스캔 문서의 전화번호 가리기</h1>
+    <p>이미지가 있는 페이지만 5세대 한국어 경량 모델로 읽고, 나머지는 글자를 직접 읽습니다. 문서는 외부로 전송하지 않습니다.</p>
+    <section class="controls">
+      <label for="file">스캔 문서 선택</label>
+      <input id="file" type="file" accept="application/pdf,.pdf" />
+      <div class="buttons"><label for="example">가짜 예제</label><select id="example"><option value="scan">스캔 1쪽</option><option value="text">텍스트 30쪽</option><option value="mixed">텍스트 29쪽 + 스캔 1쪽</option><option value="rotated">스캔 2쪽 · 두 번째 쪽 회전</option></select><button id="load-example">예제 선택</button></div>
+      <div class="buttons"><button id="start" disabled>전화번호 찾기</button><button id="cancel" disabled>취소</button><button id="download" disabled>가린 문서 다운로드</button></div>
+      <p id="status" role="status" aria-live="polite">문서를 선택해 주세요.</p>
+    </section>
+    <p class="notice">이번 시연은 전화번호만 가립니다. 이름·주소 등 다른 개인정보는 남습니다. 인식 오류로 번호를 놓칠 수 있으므로 결과를 확인해 주세요. 번호를 포함한 글자 영역 전체가 가려집니다.</p>
+    <details><summary>인식한 글자와 가림 좌표 확인</summary><pre id="details"></pre></details>
+    <div id="pages" aria-label="가린 페이지 미리보기"></div>
+  </main>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

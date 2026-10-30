@@ -8,10 +8,13 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare:ocr": "node scripts/prepare-ocr-models.mjs",
+    "build:ocr-demo": "tsc -b && vite build --config src/lib/ocr/demo/vite.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "onnxruntime-web": "1.24.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.1",
