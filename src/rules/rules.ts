@@ -1,6 +1,6 @@
 // 탐지 룰 정의. id는 Supabase `rules` 테이블의 룰 이름과 같아야 한다.
 
-export type RuleId = 'rrn' | 'phone' | 'email' | 'card'
+export type RuleId = 'rrn' | 'phone' | 'email' | 'card' | 'name' | 'address'
 
 export interface Rule {
   id: RuleId
@@ -36,6 +36,17 @@ export function passesLuhn(value: string): boolean {
   return sum % 10 === 0
 }
 
+// 주소 정규식 조각: 시/도 + 시/군/구(0~2개, 세종은 없음) + 읍/면/동(선택) + 도로명 또는 지번 + 동/호/층(선택)
+const SIDO =
+  '(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청[남북]|전라[남북]|경상[남북])' +
+  '(?:특별자치시|특별자치도|특별시|광역시|도)?'
+const SIGUNGU = '(?:\\s+[가-힣]+(?:시|군|구)){0,2}'
+const EUPMYEON = '(?:\\s+[가-힣0-9]+(?:읍|면))?'
+const ROAD = '\\s+[가-힣0-9]+(?:로|길)(?:\\s*\\d+번?길)?\\s*\\d+(?:-\\d+)?'
+const JIBUN = '\\s+[가-힣0-9]+(?:동|리)\\s*\\d+(?:-\\d+)?(?:번지)?'
+const DETAIL = '(?:[\\s,]*\\d+(?:동|호|층))*'
+const ADDRESS = `${SIDO}${SIGUNGU}${EUPMYEON}(?:${ROAD}|${JIBUN})${DETAIL}`
+
 export const RULES: Rule[] = [
   {
     id: 'rrn',
@@ -59,5 +70,16 @@ export const RULES: Rule[] = [
     // 4자리씩 같은 구분자(하이픈 또는 공백)로 나뉜 16자리
     pattern: /(?<!\d)\d{4}([- ])\d{4}\1\d{4}\1\d{4}(?!\d)/g,
     validate: passesLuhn,
+  },
+  {
+    id: 'name',
+    name: '이름',
+    // 라벨("이름: ", "성명 ")은 남기고 뒤의 한글 2~4자만 잡는다.
+    pattern: /(?<=(?:이름|성명|성함)\s*(?:[:：]\s*|\s))[가-힣]{2,4}(?![가-힣])/g,
+  },
+  {
+    id: 'address',
+    name: '주소',
+    pattern: new RegExp(`(?<![가-힣])${ADDRESS}`, 'g'),
   },
 ]

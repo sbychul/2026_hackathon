@@ -35,6 +35,32 @@ describe('detect', () => {
     expect(ids('12345678901234567890')).toEqual([])
   })
 
+  it('라벨 뒤의 이름만 찾는다', () => {
+    const text = '성명: 홍길동, 이름 김철수 / 고객님 이순신'
+    const found = detect(text).map((m) => text.slice(m.start, m.end))
+    expect(found).toEqual(['홍길동', '김철수'])
+  })
+
+  it('도로명, 지번 주소를 찾는다', () => {
+    const cases = [
+      '서울특별시 강남구 테헤란로 123',
+      '경기도 성남시 분당구 판교역로 235번길 10, 101동 1203호',
+      '세종특별자치시 한누리대로 2130',
+      '부산 해운대구 우동 1234-5',
+      '충청남도 천안시 동남구 병천면 가전리 12번지',
+    ]
+    for (const addr of cases) {
+      const text = `주소는 ${addr} 입니다`
+      const [m] = detect(text)
+      expect(m?.ruleId).toBe('address')
+      expect(text.slice(m.start, m.end)).toBe(addr)
+    }
+  })
+
+  it('시/도 없는 주소는 잡지 않는다', () => {
+    expect(ids('강남구 테헤란로 123')).toEqual([])
+  })
+
   it('찾은 위치가 원문 구간과 일치한다', () => {
     const text = '연락처: 010-1234-5678'
     const [m] = detect(text)
