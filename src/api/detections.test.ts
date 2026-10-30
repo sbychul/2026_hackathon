@@ -21,6 +21,15 @@ beforeEach(() => {
 })
 
 describe('탐지 기록 저장', () => {
+  it('계좌번호 건수를 계좌번호 룰의 기록으로 저장한다', async () => {
+    await expect(saveDetections({ inputType: 'text', counts: { account: 2 } }))
+      .resolves.toEqual({ savedRows: 1 })
+    expect(fake.insert).toHaveBeenCalledTimes(1)
+    expect(fake.insert).toHaveBeenCalledWith([
+      { user_id: 'u1', rule_id: 'account', count: 2, input_type: 'text' },
+    ])
+  })
+
   it('양수 건수만 룰마다 한 줄로 한 번에 저장한다', async () => {
     await expect(saveDetections({ inputType: 'pdf', counts: { rrn: 2, phone: 0, email: 1 } }))
       .resolves.toEqual({ savedRows: 2 })

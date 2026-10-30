@@ -34,8 +34,8 @@ do $$
 begin
   assert (select role = 'employee' from public.profiles where id = '00000000-0000-4000-8000-000000000601'),
     '가입 메타데이터로 관리자 역할을 얻으면 안 됨';
-  assert (select array_agg(name order by name) = array['address', 'card', 'email', 'name', 'phone', 'rrn'] from public.rules),
-    '기본 룰 여섯 개가 정확히 일치해야 함';
+  assert (select array_agg(name order by name) = array['account', 'address', 'card', 'email', 'name', 'phone', 'rrn'] from public.rules),
+    '기본 룰 일곱 개가 정확히 일치해야 함';
   assert (select bool_and(enabled and id = name) from public.rules), '기본 룰은 켜져 있고 이름과 식별자가 같아야 함';
   assert (select array_agg(column_name::text order by ordinal_position)
     = array['id', 'user_id', 'rule_id', 'count', 'input_type', 'created_at']
@@ -43,6 +43,9 @@ begin
     '탐지 기록에는 원문이나 실제 값 컬럼이 없어야 함';
 end;
 $$;
+
+-- 허용 목록 밖의 룰은 관리 연결에서도 검사 제약으로 거부되어야 한다.
+select pg_temp.expect_error($q$insert into public.rules (id, name) values ('x', 'x')$q$, '23514');
 
 -- 실제 관리자 지정은 신뢰할 수 있는 관리 연결로만 수행한다.
 update public.profiles set role = 'admin' where id = '00000000-0000-4000-8000-000000000603';
@@ -67,7 +70,7 @@ end;
 $$;
 
 insert into public.detections (user_id, rule_id, count, input_type)
-values ('00000000-0000-4000-8000-000000000601', 'name', 3, 'pdf');
+values ('00000000-0000-4000-8000-000000000601', 'account', 3, 'pdf');
 update public.profiles set name = '검증 직원 이름 수정' where id = '00000000-0000-4000-8000-000000000601';
 
 select pg_temp.expect_error($q$insert into public.detections (user_id, rule_id, count, input_type)
