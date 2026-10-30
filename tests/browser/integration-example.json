@@ -1,0 +1,11 @@
+{
+  "users": ["검증1"],
+  "before": [],
+  "after": [{"id":"검증1","user":"검증1","rule":"phone","count":2,"input":"text"}],
+  "expected": [{"id":"검증1","user":"검증1","rule":"phone","count":2,"input":"text"}],
+  "dashboard": {
+    "ranking": [{"user":"검증1","rank":1,"total":2}],
+    "table": [{"user":"검증1","total":2,"counts":{"rrn":0,"phone":2,"email":0,"card":0,"name":0,"address":0,"account":0}}],
+    "totals": {"rrn":0,"phone":2,"email":0,"card":0,"name":0,"address":0,"account":0}
+  }
+}
