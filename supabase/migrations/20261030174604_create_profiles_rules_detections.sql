@@ -16,7 +16,7 @@ create table public.rules (
 
 create table public.detections (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles (id),
+  user_id uuid not null references public.profiles (id) on delete cascade,
   rule_id text not null references public.rules (id),
   count integer not null check (count > 0),
   input_type text not null check (input_type in ('text', 'pdf')),

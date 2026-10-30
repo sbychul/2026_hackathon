@@ -1,4 +1,5 @@
 -- 관리자 연결에서 실행한다. 검증용 계정과 기록은 마지막에 전부 되돌린다.
+-- psql 전용 검증 파일이다. pgTAP 형식이 아니므로 supabase test db로 실행하지 않는다.
 -- 실행 예: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql
 \set ON_ERROR_STOP on
 begin;
@@ -138,5 +139,20 @@ select pg_temp.expect_error($q$insert into public.detections (user_id, rule_id, 
   values ('00000000-0000-4000-8000-000000000601', 'phone', 1, 'text')$q$, '42501');
 
 reset role;
+
+-- 관리 경로에서 계정을 지우면 해당 프로필과 기록만 연쇄 삭제되는지 검사한다.
+delete from auth.users where id = '00000000-0000-4000-8000-000000000601';
+do $$
+begin
+  assert not exists (select 1 from public.profiles where id = '00000000-0000-4000-8000-000000000601'),
+    '삭제된 계정의 프로필이 남으면 안 됨';
+  assert not exists (select 1 from public.detections where user_id = '00000000-0000-4000-8000-000000000601'),
+    '삭제된 계정의 탐지 기록이 남으면 안 됨';
+  assert (select count(*) = 1 from public.detections where user_id = '00000000-0000-4000-8000-000000000602'),
+    '다른 직원의 기록을 삭제하면 안 됨';
+  assert (select count(*) = 1 from public.detections where user_id = '00000000-0000-4000-8000-000000000603'),
+    '관리자의 기록을 삭제하면 안 됨';
+end;
+$$;
 rollback;
 \echo '접근 제한 검증 통과. 검증용 계정과 기록은 되돌렸습니다.'
