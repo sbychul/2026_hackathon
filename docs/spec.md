@@ -117,6 +117,62 @@ PDF나 텍스트에 들어 있는 개인정보를 브라우저 안에서 자동�
 - 사용자가 자기 역할을 직접 바꾸지 못하게 `profiles`의 역할 수정을 막는다.
 - 탐지 기록은 추가만 가능하고, 수정과 삭제는 막는다.
 
+### 화면과 데이터 함수 사이의 약속
+
+- 화면은 `src/api/auth.ts`, `src/api/detections.ts`, `src/api/stats.ts`를 호출한다. 실제 연결은 공통 `src/lib/supabase.ts`를 사용한다.
+- 모든 함수는 비동기다. 실패하면 오류를 던지므로 화면에서 잡아서 안내한다. 비밀번호나 오류의 요청 내용을 기록하지 않는다.
+- 역할은 `employee`(직원), `admin`(관리자), 입력 방식은 `text`(텍스트), `pdf`(PDF)다.
+- `RuleId`는 공통 룰의 식별자 `rrn`, `phone`, `email`, `card`, `name`, `address`다. 화면 표시명은 공통 룰의 한글 이름을 쓴다.
+
+| 함수 | 받는 데이터 | 돌려주는 데이터 |
+|---|---|---|
+| `login` | `{ email: string, password: string }` | `CurrentUser` |
+| `logout` | 없음 | 없음. 현재 브라우저의 세션 종료 |
+| `getCurrentUser` | 없음 | `CurrentUser` 또는 로그인하지 않았다면 `null` |
+| `saveDetections` | `{ inputType: 'text' \| 'pdf', counts: Partial<Record<RuleId, number>> }` | `{ savedRows: number }` |
+| `getAdminStats` | 없음 | `AdminStats`. 로그인한 관리자만 호출 가능 |
+| `getMockAdminStats` | 없음 | 실제 조회와 같은 `AdminStats`. 연결·로그인 없이 사용 가능 |
+
+```ts
+type CurrentUser = {
+  id: string
+  email: string | null
+  name: string
+  role: 'employee' | 'admin'
+}
+
+type AdminStats = {
+  ranking: {
+    rank: number
+    userId: string
+    name: string
+    total: number
+  }[]
+  userRuleCounts: {
+    userId: string
+    name: string
+    total: number
+    counts: Record<RuleId, number>
+  }[]
+  ruleTotals: {
+    ruleId: RuleId
+    name: string
+    count: number
+  }[]
+}
+```
+
+- 로그인과 현재 사용자 조회는 인증 서버에서 확인한 사용자 번호로 `profiles`를 조회한다. 역할은 로그인 메타데이터가 아닌 저장된 프로필을 따른다. 프로필 누락·잘못된 역할·통신 실패는 오류로 처리한다.
+- 삭제된 사용자나 무효 토큰(401·403)은 이 브라우저의 세션을 지우고 `null`을 반환한다. `login`이 프로필 확인에서 실패하면 방금 만든 세션도 지운 뒤 오류를 던진다.
+- 마스킹 완료 후 `saveDetections({ inputType: 'pdf', counts: { rrn: 2, phone: 0, email: 1 } })`를 한 번 호출한다. 이 경우 룰별로 두 줄을 한 요청으로 저장하고 `{ savedRows: 2 }`를 반환한다.
+- 사용자 번호는 호출자가 전달하지 않고 현재 로그인에서 가져온다. 원문·파일·탐지 값은 받거나 저장하지 않는다. 실제 저장 열은 `user_id`, `rule_id`, `count`, `input_type`뿐이며 식별자·생성 시각은 데이터베이스가 생성한다.
+- 생략한 룰과 0건인 룰은 저장하지 않는다. 건수는 0~2,147,483,647의 정수만 허용하며 알 수 없는 룰·잘못된 입력 방식·음수·소수는 오류다. 비로그인 개인 모드와 저장할 양수 건수가 없는 경우 `{ savedRows: 0 }`을 반환한다.
+- 저장 요청은 자동으로 재시도하지 않는다. 응답 유실 후 재호출하면 중복될 수 있으므로 화면은 저장 중 중복 호출을 막아야 한다. 실행 횟수 집계는 이번 범위에 포함하지 않는다.
+- 통계는 텍스트·PDF 전체 누적 건수이며, 응답 행 제한을 넘는 기록도 페이지별로 끝까지 읽는다. 전체 프로필(관리자 포함)을 표시하고 기록 없는 사용자·룰은 0으로 채운다.
+- 순위와 교차표는 전체 건수 내림차순이다. 동점은 같은 순위이며 다음 순위는 건너뛴다(1, 1, 3). 동점 안에서는 사용자 번호순으로 표시한다. 룰 합계는 공통 룰 순서다.
+- 가짜 통계는 가상 사용자 5명, 동점과 0건 사용자를 포함한다. `await getMockAdminStats()`를 쓰다가 연결 완료 후 `await getAdminStats()`로 바꾸면 화면의 데이터 형태를 유지할 수 있다. 실제 조회 실패를 가짜 데이터로 자동 대체하지 않는다.
+- 관리자 확인은 화면 사용을 위한 검사이며 실제 열람·저장 권한은 데이터베이스의 행 단위 보안에서도 제한한다. 여러 페이지 조회는 마지막으로 읽은 식별자 다음부터 이어 읽으므로 같은 기록을 두 번 세지 않는다. 다만 동일 시점의 스냅샷은 아니어서 조회 중 추가된 기록은 빠질 수 있으니 새로고침으로 확인한다. 기록을 읽은 뒤 삭제된 사용자의 기록은 집계에서 뺀다.
+
 ## 9. 기술 방향 (제안)
 
 - 웹 서비스. React와 TypeScript를 제안한다. (팀 합의 시 변경 가능)
