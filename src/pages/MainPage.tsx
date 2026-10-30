@@ -20,6 +20,7 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
       alert('PDF 외의 파일 첨부는 불가능합니다.')
       return
     }
+    setText('')
     setPdf(file)
   }
 
@@ -32,7 +33,6 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
   // 글이 있으면 결과 화면으로 넘긴다. PDF 탐지는 아직 연결 전이다.
   const handleFind = () => {
     if (text) onFind(text)
-    // ponytail: PDF 탐지는 #4 이후에 연결한다.
     else alert('PDF 탐지는 아직 준비 중이에요.')
   }
 
@@ -50,7 +50,10 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
             className="input-text"
             rows={1}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value)
+              setPdf(null)
+            }}
             placeholder="여기에 글을 붙여넣거나 PDF를 끌어다 놓으세요"
             aria-label="개인정보를 찾을 글"
           />
@@ -72,7 +75,7 @@ export default function MainPage({ onFind }: { onFind: (text: string) => void })
             />
             <div className="run">
               <span className="count">{pdf ? pdf.name : `${text.length}자`}</span>
-              <Button disabled={!text && !pdf} onClick={handleFind}>
+              <Button disabled={!text} onClick={handleFind}>
                 개인정보 찾기
               </Button>
             </div>

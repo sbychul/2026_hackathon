@@ -28,7 +28,7 @@ export default function App() {
       return
     }
     setView('loading')
-    // ponytail: 텍스트 탐지는 바로 끝나서 원이 거의 안 보인다. PDF 탐지(#4)가 붙으면 여기서 기다린다.
+    // 텍스트 탐지는 바로 끝나서 로딩 화면이 거의 보이지 않는다. PDF 탐지 연결 뒤 대기 시간을 사용한다.
     await Promise.resolve()
     setView('result')
   }

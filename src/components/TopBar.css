@@ -2,6 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 18px 40px;
   border-bottom: 1px solid var(--line-default);
 }
@@ -28,4 +29,15 @@
   width: 1px;
   height: 14px;
   background: var(--line-default);
+}
+
+@media (max-width: 600px) {
+  .top-bar {
+    flex-wrap: wrap;
+    padding: 16px;
+  }
+
+  .mode {
+    margin-left: auto;
+  }
 }
